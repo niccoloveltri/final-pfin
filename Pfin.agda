@@ -1,7 +1,8 @@
-{-# OPTIONS --cubical --no-import-sorts --guardedness #-}
+{-# OPTIONS --cubical --no-import-sorts #-}
 
 module Pfin where
 
+open import Size
 open import Cubical.Core.Everything
 open import Cubical.Foundations.Prelude
 open import Cubical.Foundations.Everything
@@ -101,11 +102,16 @@ relLiftₛ : ∀{X Y} (R : X → Y → Type₀)
 relLiftₛ R s₁ s₂ =
   ∀ x → ⟨ x ∈ₛ s₁ ⟩ → ∃[ y ∈ _ ] ⟨ y ∈ₛ s₂ ⟩ × R x y
 
-symrelLiftₛ : ∀{X Y} (R : X → Y → Type₀)
-  → Pfin X → Pfin Y → Type₀
+-- symrelLiftₛ : ∀{X Y} (R : X → Y → Type₀)
+--   → Pfin X → Pfin Y → Type₀
+-- symrelLiftₛ R s₁ s₂ = 
+--   relLiftₛ R s₁ s₂ × relLiftₛ (λ y x → R x y) s₂ s₁
+
+symrelLiftₛ : ∀{X} (R : X → X → Type₀)
+  → Pfin X → Pfin X → Type₀
 symrelLiftₛ R s₁ s₂ = 
-  relLiftₛ R s₁ s₂ × relLiftₛ (λ y x → R x y) s₂ s₁
-  
+  relLiftₛ R s₁ s₂ × relLiftₛ R s₂ s₁
+
 ∪isLub : ∀{A}{s t : Pfin A} (u : Pfin A)
   → s ≤ u → t ≤ u → (s ∪ t) ≤ u
 ∪isLub {s = s}{t} u ls lt =
@@ -135,13 +141,17 @@ relLiftₛ⊆ : ∀{X}(s t : Pfin X) → relLiftₛ _≡_ s t → s ⊆ t
 relLiftₛ⊆ s t p x mx =
   ∥rec∥ (snd (x ∈ₛ t)) (λ { (y , my , eq) → subst (λ z → ⟨ z ∈ₛ t ⟩) (sym eq) my }) (p x mx)
 
--- relLiftₛ⊆2 : ∀{X}(s t : Pfin X) → relLiftₛ _≡_ s t → t ⊆ s
--- relLiftₛ⊆2 s t (p₁ , p₂) x mx =
---   ∥rec∥ (snd (x ∈ₛ s)) (λ { (y , my , eq) → subst (λ z → ⟨ z ∈ₛ s ⟩) eq my }) (p₂ x mx)
+relLiftₛ⊆2 : ∀{X}(s t : Pfin X) → relLiftₛ (λ y x → x ≡ y) t s → t ⊆ s
+relLiftₛ⊆2 s t p x mx = 
+  ∥rec∥ (snd (x ∈ₛ s)) (λ { (y , my , eq) → subst (λ z → ⟨ z ∈ₛ s ⟩) eq my }) (p x mx)
+
+-- symrelLiftₛEq : ∀{X} (s t : Pfin X) → symrelLiftₛ _≡_ s t → s ≡ t
+-- symrelLiftₛEq s t (p₁ , p₂) =
+--   antisym≤ (⊂2≤ _ _ (relLiftₛ⊆ s t p₁)) (⊂2≤ _ _ (relLiftₛ⊆2 s t p₂))
 
 symrelLiftₛEq : ∀{X} (s t : Pfin X) → symrelLiftₛ _≡_ s t → s ≡ t
 symrelLiftₛEq s t (p₁ , p₂) =
-  antisym≤ (⊂2≤ _ _ (relLiftₛ⊆ s t p₁)) (⊂2≤ _ _ {!!})
+  antisym≤ (⊂2≤ _ _ (relLiftₛ⊆ s t p₁)) (⊂2≤ _ _ (relLiftₛ⊆ t s p₂))
 
 ∈ₛmapPfin : ∀{A B} (f : A → B) (a : A) (s : Pfin A)
   → ⟨ a ∈ₛ s ⟩ → ⟨ f a ∈ₛ mapPfin f s ⟩
@@ -195,7 +205,7 @@ List→Pfin∈ : ∀{A} (xs : List A){a : A}
 List→Pfin∈ (x ∷ xs) (here eq) = inl ∣ eq ∣
 List→Pfin∈ (x ∷ xs) (there p) = inr (List→Pfin∈ xs p)
 
-
+{-
 ζ : νPfin → Pfin νPfin
 ζ = recQ trunc (λ t → mapPfin eqCl (List→Pfin (force t)))
   (λ t₁ t₂ r → symrelLiftₛEq _ _
@@ -229,6 +239,7 @@ force (t ++ₜ s) = (force t) ++ (force s)
 ζ-1 (idem x i) = {!!}
 ζ-1 (nr x i) = {!!}
 ζ-1 (trunc x x₁ x₂ y i i₁) = {!!}
+-}
 
 SameEl : {X : Type} → List X → List X → Type
 SameEl = relator _≡_
@@ -237,7 +248,7 @@ Pfin2 : Type → Type
 Pfin2 X = List X / SameEl
 
 {- 
-IT NEEDS FULL AXIOM OF CHOICE!!! 
+IT NEEDS FULL AXIOM OF CHOICE!!!  (And therefore excluded middle in hProp)
 It would work if X → Pfin2 X ≃ (X → List X) / (X → SameEl) 
 -}
 pre-anaₜ : ∀{X} (c : X → Pfin2 X) → List X → Tree
@@ -254,67 +265,228 @@ pre-anaₚ c = recQ squash/ (λ xs → eqCl (pre-anaₜ c xs)) {!!}
 -- pre-ana' c (nr s i) = nr (pre-ana' c s) i
 -- pre-ana' c (trunc p q x y i j) = trunc _ _ (cong (pre-ana' c) x) (cong (pre-ana' c) y) i j
 
+record νPfin2 (j : Size) : Type₀ where
+  constructor thunk
+  coinductive
+  field
+    force2 : {k : Size< j} → Pfin (νPfin2 k)
+open νPfin2 public
 
--- record νPfin : Type₀ where
---   coinductive
---   field
---     force : Pfin νPfin
--- open νPfin
+record Bisim2 (j : Size) (s₁ s₂ : νPfin2 ∞) : Type where
+  coinductive
+  field
+    forceEq2 : ∀{k : Size< j} → symrelLiftₛ (Bisim2 k) (force2 s₁) (force2 s₂)
+open Bisim2
 
--- ana : ∀{X} (c : X → Pfin X) → X → νPfin
--- ana' : ∀{X} (c : X → Pfin X) → Pfin X → Pfin νPfin
--- force (ana c x) = ana' c (c x)
--- ana' c ø = ø
--- ana' c (η x) = η (ana c x)
--- ana' c (s ∪ s₁) = ana' c s ∪ ana' c s₁
--- ana' c (com s s₁ i) = com (ana' c s) (ana' c s₁) i
--- ana' c (ass s s₁ s₂ i) = ass (ana' c s)  (ana' c s₁) (ana' c s₂) i
--- ana' c (idem s i) = idem (ana' c s) i
--- ana' c (nr s i) = nr (ana' c s) i
--- ana' c (trunc p q x y i j) = trunc _ _ (cong (ana' c) x) (cong (ana' c) y) i j
+force2-inj : ∀{s t : νPfin2 ∞} → force2 s ≡ force2 t → s ≡ t
+force2 (force2-inj eq i) = {!eq i!}
 
--- anaEq : ∀{X} (c : X → Pfin X) (x : X)
---   → force (ana c x) ≡ mapPfin (ana c) (c x)
--- anaEq' : ∀{X} (c : X → Pfin X) (s : Pfin X)
---   → ana' c s ≡ mapPfin (ana c) s
--- anaEq c x = anaEq' c (c x)
--- anaEq' c =
---   elimPfinProp (λ s → _ , trunc _ _)
---     refl (λ _ → refl) λ p₁ p₂ → cong₂ _∪_ p₁ p₂ 
 
--- record Bisim (s₁ s₂ : νPfin) : Type where
---   coinductive
---   field
---     forceEq : symrelLiftₛ Bisim (force s₁) (force s₂)
--- open Bisim
+-- force2-inj : ∀{s t : νPfin2 ∞} → force2 s ≡ force2 t → s ≡ t
+-- force2 (force2-inj eq i) = eq i
 
--- refl-Bisim : (t : νPfin) → Bisim t t
--- forceEq (refl-Bisim t) =
---   (λ x mx → ∣ x , mx , refl-Bisim x ∣) ,
---   (λ x mx → ∣ x , mx , refl-Bisim x ∣)
+-- force2-iso1 : ∀ s → force2 (thunk s) ≡ s
+-- force2-iso1 s = refl
 
--- misib : (t₁ t₂ : νPfin) → t₁ ≡ t₂ → Bisim t₁ t₂
--- misib t₁ t₂ = J (λ x p → Bisim t₁ x) (refl-Bisim t₁) 
+-- force2-iso2 : ∀ s → thunk (force2 s) ≡ s
+-- force2-iso2 s = force2-inj refl
 
--- bisim : (t₁ t₂ : νPfin) → Bisim t₁ t₂ → t₁ ≡ t₂ --relLiftₛ _≡_ (force t₁) (force t₂)
--- bisim' : (t₁ t₂ : Pfin νPfin) → relLiftₛ Bisim t₁ t₂ → relLiftₛ _≡_ t₁ t₂ --{x : νPfin} → ⟨ x ∈ₛ t₁ ⟩ → ⟨ {!!} ⟩ 
--- force (bisim t₁ t₂ b i) = {!!}
--- --  relLiftₛEq (force t₁) (force t₂) (bisim' (force t₁) (force t₂) (forceEq b)) i
--- bisim' t₁ t₂ b x mx with b x mx
--- ... | ∣ y , my , eq ∣ = ∣ y , my , bisim x y eq ∣
--- ... | squash y z i = {!!}
--- -- --  (λ x mx → ∥map∥ (λ { (y , my , eq) → y , my , bisim x y eq}) (b₁ x mx)) ,
--- -- --  (λ y my → ∥map∥ (λ { (x , mx , eq) → x , mx , bisim x y eq}) (b₂ y my))
+-- ana : ∀{X} (c : X → Pfin X) → X → νPfin2
+-- ana' : ∀{X} (c : X → Pfin X) → Pfin X → Pfin νPfin2
+-- force2 (ana c x) = ana' c (c x)
+-- ana' c = mapPfin (ana c)
 
+-- -- ana' c ø = ø
+-- -- ana' c (η x) = η (ana c x)
+-- -- ana' c (s ∪ s₁) = ana' c s ∪ ana' c s₁
+-- -- ana' c (com s s₁ i) = com (ana' c s) (ana' c s₁) i
+-- -- ana' c (ass s s₁ s₂ i) = ass (ana' c s)  (ana' c s₁) (ana' c s₂) i
+-- -- ana' c (idem s i) = idem (ana' c s) i
+-- -- ana' c (nr s i) = nr (ana' c s) i
+-- -- ana' c (trunc p q x y i j) = trunc _ _ (cong (ana' c) x) (cong (ana' c) y) i j
+
+-- -- anaEq : ∀{X} (c : X → Pfin X) (x : X)
+-- --   → force2 (ana c x) ≡ mapPfin (ana c) (c x)
+-- -- anaEq' : ∀{X} (c : X → Pfin X) (s : Pfin X)
+-- --   → ana' c s ≡ mapPfin (ana c) s
+-- -- anaEq c x = anaEq' c (c x)
+-- -- anaEq' c =
+-- --   elimPfinProp (λ s → _ , trunc _ _)
+-- --     refl (λ _ → refl) λ p₁ p₂ → cong₂ _∪_ p₁ p₂ 
+
+-- -- anaEq2 : ∀{X} (c : X → Pfin X) (x : X)
+-- --   → ana c x ≡ thunk (mapPfin (ana c) (c x))
+-- -- anaEq2 c x = force2-inj (anaEq' c (c x)) 
+
+-- -- ana-uniq' : ∀{X} (c : X → Pfin X)
+-- --   → (f : X → νPfin2) (eq : ∀ x → f x ≡ thunk (mapPfin f (c x)))
+-- --   → ∀ s → ana' c s ≡ mapPfin f s
+-- -- -- ana-uniq'' : ∀{X} (c : X → Pfin X)
+-- -- --   → (f : X → νPfin2) (eq : ∀ x → force2 (f x) ≡ mapPfin f (c x))
+-- -- --   → ∀ x → ana' c (c x) ≡ force2 (f x)
 -- -- ana-uniq : ∀{X} (c : X → Pfin X)
--- --   → (f : X → νPfin) (eq : ∀ x → relLiftₛ _≡_ (force (f x)) (mapPfin f (c x)))
--- --   → ∀ x → Bisim (ana c x) (f x)
--- -- forceEq (ana-uniq c f eq x) = {!!}
--- -- -- 
--- -- --   (λ t mt →
--- -- --      ∥rec∥ propTruncIsProp
--- -- --        (λ {(y , my , eqy) → ∥map∥ (λ { (t' , mt' , eqt') → t' , mt' , misib _ _ (sym eqy ∙ bisim _ _ (ana-uniq c f eq y) ∙ sym eqt')}) (eq x .snd (f y) (∈ₛmapPfin f y (c x) my))} ) 
--- -- --        (pre∈ₛmapPfin (ana c) t (c x) (subst (λ z → ⟨ t ∈ₛ z ⟩) (anaEq' c (c x)) mt)) ) , 
--- -- --   {!!}
+-- --   → (f : X → νPfin2) (eq : ∀ x → f x ≡ thunk (mapPfin f (c x)))
+-- --   → ∀ x → ana c x ≡ thunk (mapPfin f (c x))
+-- -- ana-uniq' c f eq ø = refl
+-- -- ana-uniq' c f eq (η x) = cong η (ana-uniq c f eq x ∙ sym (eq x))
+-- -- ana-uniq' c f eq (s ∪ s₁) = cong₂ _∪_ (ana-uniq' c f eq s) (ana-uniq' c f eq s₁)
+-- -- ana-uniq' c f eq (com s s₁ i) = {!!}
+-- -- ana-uniq' c f eq (ass s s₁ s₂ i) = {!!}
+-- -- ana-uniq' c f eq (idem s i) = {!!}
+-- -- ana-uniq' c f eq (nr s i) = {!!}
+-- -- ana-uniq' c f eq (trunc s s₁ x y i i₁) = {!!}
+
+-- -- --ana-uniq'' c f eq x = ana-uniq' c f eq (c x) ∙ sym (eq x)
+
+-- -- force2 (ana-uniq c f eq x i) = ana-uniq' c f eq (c x) i
+
+-- -- {-
+-- -- bisim2 : (t₁ t₂ : νPfin2) → Bisim2 t₁ t₂ → force2 t₁ ≡ force2 t₂
+-- -- bisim2' : (t₁ t₂ : Pfin νPfin2) → relLiftₛ Bisim2 t₁ t₂ → relLiftₛ _≡_ t₁ t₂
+-- -- bisim2 t₁ t₂ b i = {!bisim2' (force2 t₁) (force2 t₂) ?!} --(bisim2' (force2 t₁) (force2 t₂) (forceEq2 b .fst)) , bisim2' (force2 t₂) (force2 t₁) (forceEq2 b .snd)
+-- -- bisim2' t₁ t₂ b x mx = ∥map∥ (λ { (y , my , eq) → y , my , force2-inj (bisim2 x y eq)}) (b x mx)
+-- -- -}
+
+-- -- {-
+-- -- bisim2 : (t₁ t₂ : νPfin2) → Bisim2 t₁ t₂ → t₁ ≡ t₂
+-- -- bisim2' : (t₁ t₂ : Pfin νPfin2) → relLiftₛ Bisim2 t₁ t₂ → relLiftₛ _≡_ t₁ t₂ 
+-- -- force2 (bisim2 t₁ t₂ b i) =
+-- --   symrelLiftₛEq (force2 t₁) (force2 t₂) (bisim2' (force2 t₁) (force2 t₂) (forceEq2 b .fst) , bisim2' (force2 t₂) (force2 t₁) (forceEq2 b .snd)) i
+-- -- bisim2' t₁ t₂ b x mx = ∥map∥ (λ { (y , my , eq) → y , my , bisim2 x y eq}) (b x mx)
+-- -- -}
+
+-- -- {-
+-- -- record νPfin2 (i : Size) : Type₀ where
+-- --   constructor thunk
+-- --   coinductive
+-- --   field
+-- --     force2 : {j : Size< i} → Pfin (νPfin2 j)
+-- -- open νPfin2 public
+
+-- -- record Bisim2 (i : Size) (j : Size< i) (s₁ s₂ : νPfin2 i) : Type where
+-- --   coinductive
+-- --   field
+-- --     forceEq2 : {k : Size< j} → symrelLiftₛ (Bisim2 j k) (force2 s₁) (force2 s₂)
+-- -- open Bisim2
+
+-- -- bisim2 : ∀{j}{k : Size< j} (t₁ t₂ : νPfin2 j) → Bisim2 j k t₁ t₂ → t₁ ≡ t₂
+-- -- bisim2' : ∀{j}{k : Size< j} (t₁ t₂ : Pfin (νPfin2 j)) → relLiftₛ (Bisim2 j k) t₁ t₂ → relLiftₛ _≡_ t₁ t₂ 
+-- -- force2 (bisim2 t₁ t₂ b i) =
+-- --   symrelLiftₛEq (force2 t₁) (force2 t₂) ({!bisim2' (force2 t₁) (force2 t₂) ?!} , {!!}) {!!}
+-- -- --  symrelLiftₛEq (force2 t₁) (force2 t₂) (bisim2' (force2 t₁) (force2 t₂) (forceEq2 b .fst) , bisim2' (force2 t₂) (force2 t₁) (forceEq2 b .snd)) i
+-- -- bisim2' t₁ t₂ b x mx = ∥map∥ (λ { (y , my , eq) → y , my , bisim2 x y eq}) (b x mx)
+-- -- -}
+
+-- -- -- refl-Bisim2 : (t : νPfin2) → Bisim2 t t
+-- -- -- forceEq2 (refl-Bisim2 t) =
+-- -- --   (λ x mx → ∣ x , mx , refl-Bisim2 x ∣) ,
+-- -- --   (λ x mx → ∣ x , mx , refl-Bisim2 x ∣)
+
+-- -- -- misib2 : (t₁ t₂ : νPfin2) → t₁ ≡ t₂ → Bisim2 t₁ t₂
+-- -- -- misib2 t₁ t₂ = J (λ x p → Bisim2 t₁ x) (refl-Bisim2 t₁) 
+
+-- -- -- force2-inj' : ∀{s t} → force2 s ≡ force2 t → Bisim2 s t
+-- -- -- fst (forceEq2 (force2-inj' eq)) x m = ∣ x , subst (λ z → ⟨ x ∈ₛ z ⟩) eq m , refl-Bisim2 x ∣
+-- -- -- snd (forceEq2 (force2-inj' eq)) x m = ∣ x , subst (λ z → ⟨ x ∈ₛ z ⟩) (sym eq) m , refl-Bisim2 x ∣
+
+-- -- -- force2-inj : ∀{s t} → force2 s ≡ force2 t → s ≡ t
+-- -- -- force2-inj eq = bisim2 _ _ (force2-inj' eq)
+
+-- -- -- thunk-inj' : ∀{s t} → Bisim2 (thunk s) (thunk t) → s ≡ t
+-- -- -- thunk-inj' b = symrelLiftₛEq _ _
+-- -- --   ((λ x mx → {!forceEq2 b .fst x mx!}) ,
+-- -- --    {!!})
+
+-- -- -- force2-thunk : ∀ s → force2 (thunk s) ≡ s
+-- -- -- force2-thunk s = refl
+
+-- -- -- thunk-force2 : ∀ s → Bisim2 (thunk (force2 s)) s
+-- -- -- fst (forceEq2 (thunk-force2 s)) x m = ∣ x , m , refl-Bisim2 x ∣
+-- -- -- snd (forceEq2 (thunk-force2 s)) x m = ∣ x , m , refl-Bisim2 x ∣
+
+-- -- -- thunk-surj : ∀ s → ∃[ t ∈ Pfin νPfin2 ] thunk t ≡ s
+-- -- -- thunk-surj s = ∣ force2 s , bisim2 _ _ {!!} ∣
+
+
+-- -- -- -- ana : ∀{X} (c : X → Pfin X) → X → νPfin
+-- -- -- -- ana' : ∀{X} (c : X → Pfin X) → Pfin X → Pfin νPfin
+-- -- -- -- force (ana c x) = ana' c (c x)
+-- -- -- -- ana' c ø = ø
+-- -- -- -- ana' c (η x) = η (ana c x)
+-- -- -- -- ana' c (s ∪ s₁) = ana' c s ∪ ana' c s₁
+-- -- -- -- ana' c (com s s₁ i) = com (ana' c s) (ana' c s₁) i
+-- -- -- -- ana' c (ass s s₁ s₂ i) = ass (ana' c s)  (ana' c s₁) (ana' c s₂) i
+-- -- -- -- ana' c (idem s i) = idem (ana' c s) i
+-- -- -- -- ana' c (nr s i) = nr (ana' c s) i
+-- -- -- -- ana' c (trunc p q x y i j) = trunc _ _ (cong (ana' c) x) (cong (ana' c) y) i j
+
+-- -- -- -- anaEq : ∀{X} (c : X → Pfin X) (x : X)
+-- -- -- --   → force (ana c x) ≡ mapPfin (ana c) (c x)
+-- -- -- -- anaEq' : ∀{X} (c : X → Pfin X) (s : Pfin X)
+-- -- -- --   → ana' c s ≡ mapPfin (ana c) s
+-- -- -- -- anaEq c x = anaEq' c (c x)
+-- -- -- -- anaEq' c =
+-- -- -- --   elimPfinProp (λ s → _ , trunc _ _)
+-- -- -- --     refl (λ _ → refl) λ p₁ p₂ → cong₂ _∪_ p₁ p₂ 
+
+
+
+-- -- -- -- misib : (t₁ t₂ : νPfin) → t₁ ≡ t₂ → Bisim t₁ t₂
+-- -- -- -- misib t₁ t₂ = J (λ x p → Bisim t₁ x) (refl-Bisim t₁) 
+
+-- -- -- -- bisim : (t₁ t₂ : νPfin) → Bisim t₁ t₂ → t₁ ≡ t₂ --relLiftₛ _≡_ (force t₁) (force t₂)
+-- -- -- -- bisim' : (t₁ t₂ : Pfin νPfin) → relLiftₛ Bisim t₁ t₂ → relLiftₛ _≡_ t₁ t₂ --{x : νPfin} → ⟨ x ∈ₛ t₁ ⟩ → ⟨ {!!} ⟩ 
+-- -- -- -- force (bisim t₁ t₂ b i) = {!!}
+-- -- -- -- --  relLiftₛEq (force t₁) (force t₂) (bisim' (force t₁) (force t₂) (forceEq b)) i
+-- -- -- -- bisim' t₁ t₂ b x mx with b x mx
+-- -- -- -- ... | ∣ y , my , eq ∣ = ∣ y , my , bisim x y eq ∣
+-- -- -- -- ... | squash y z i = {!!}
+-- -- -- -- -- --  (λ x mx → ∥map∥ (λ { (y , my , eq) → y , my , bisim x y eq}) (b₁ x mx)) ,
+-- -- -- -- -- --  (λ y my → ∥map∥ (λ { (x , mx , eq) → x , mx , bisim x y eq}) (b₂ y my))
+
+-- -- -- -- -- ana-uniq : ∀{X} (c : X → Pfin X)
+-- -- -- -- --   → (f : X → νPfin) (eq : ∀ x → relLiftₛ _≡_ (force (f x)) (mapPfin f (c x)))
+-- -- -- -- --   → ∀ x → Bisim (ana c x) (f x)
+-- -- -- -- -- forceEq (ana-uniq c f eq x) = {!!}
+-- -- -- -- -- -- 
+-- -- -- -- -- --   (λ t mt →
+-- -- -- -- -- --      ∥rec∥ propTruncIsProp
+-- -- -- -- -- --        (λ {(y , my , eqy) → ∥map∥ (λ { (t' , mt' , eqt') → t' , mt' , misib _ _ (sym eqy ∙ bisim _ _ (ana-uniq c f eq y) ∙ sym eqt')}) (eq x .snd (f y) (∈ₛmapPfin f y (c x) my))} ) 
+-- -- -- -- -- --        (pre∈ₛmapPfin (ana c) t (c x) (subst (λ z → ⟨ t ∈ₛ z ⟩) (anaEq' c (c x)) mt)) ) , 
+-- -- -- -- -- --   {!!}
+
+
+
+record Str (A : Type) : Type where
+  coinductive
+  field
+    force : A × Str A
+open Str
+
+force-inj : ∀{A} {s s' : Str A} → force s ≡ force s' → s ≡ s'
+force (force-inj eq i) = eq i
+
+mutual
+  data StrSz (j : Size) (A : Type) : Type where
+    cons : A → StrSz' j A → StrSz j A
+  record StrSz' (j : Size) (A : Type) : Type where
+    coinductive
+    field
+      forceSz : {k : Size< j} → StrSz k A
+open StrSz'
+
+forceSz-inj : ∀{A} {s s' : StrSz' ∞ A} → forceSz s ≡ forceSz s' → s ≡ s'
+forceSz (forceSz-inj eq i) = {!eq i!}
+
+{-
+record StrSz (j : Size) (A : Type) : Type where
+  coinductive
+  field
+    forceSz : {k : Size< j} → A × StrSz k A
+open StrSz
+
+forceSz-inj : ∀{A} {s s' : StrSz ∞ A} → forceSz s ≡ forceSz s' → s ≡ s'
+forceSz (forceSz-inj eq i) = {!eq i!}
+-}
 
 
