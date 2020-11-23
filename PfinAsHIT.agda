@@ -1,6 +1,6 @@
 {-# OPTIONS --cubical --no-import-sorts #-}
 
-module Pfin where
+module PfinAsHIT where
 
 open import Cubical.Core.Everything
 open import Cubical.Foundations.Prelude
@@ -28,6 +28,28 @@ data Pfin (A : Type) : Type where
   idem  : ∀ x → x ∪ x ≡ x
   nr  : ∀ x → x ∪ ø ≡ x
   trunc : isSet (Pfin A)
+
+-- recursion principle of Pfin
+module _ {A B : Type₀} (Bset : isSet B)
+         (bø : B) (bη : A → B)
+         (_b∪_ : B → B → B)
+         (bcom  : ∀ x y → x b∪ y ≡ y b∪ x)
+         (bass : ∀ x y z → x b∪ (y b∪ z) ≡ (x b∪ y) b∪ z)
+         (bidem  : ∀ x → x b∪ x ≡ x)
+         (bnr  : ∀ x → x b∪ bø ≡ x) where
+
+  recPfin : Pfin A → B
+  recPfin ø = bø
+  recPfin (η x) = bη x
+  recPfin (s ∪ s₁) = (recPfin s) b∪ (recPfin s₁)
+  recPfin (com s s₁ i) = bcom (recPfin s) (recPfin s₁) i
+  recPfin (ass s s₁ s₂ i) = bass (recPfin s) (recPfin s₁) (recPfin s₂) i
+  recPfin (idem s i) = bidem (recPfin s) i
+  recPfin (nr s i) = bnr (recPfin s) i
+  recPfin (trunc s s₁ x y i i₁) =
+    Bset (recPfin s) (recPfin s₁)
+         (\ j → recPfin (x j)) (\ j → recPfin (y j))
+         i i₁
 
 -- finite subset membership
 _∈ₛ_ : ∀{A} → A → Pfin A → hProp ℓ-zero
@@ -170,8 +192,8 @@ PfinRelₚ R s t =
 
 -- extensional equality of finite subsets: they are equal if they
 -- contain the same elements
-SameEq : ∀{X} → Pfin X → Pfin X → Type₀
-SameEq = PfinRel _≡_
+PfinEq : ∀{X} → Pfin X → Pfin X → Type₀
+PfinEq = PfinRel _≡_
 
 -- extensional equality of finite subsets is equivalent to path
 -- equality
@@ -185,8 +207,8 @@ PfinDRel⊆2 s t p x mx =
   ∥rec∥ (snd (x ∈ₛ s))
     (λ { (y , my , eq) → subst (λ z → ⟨ z ∈ₛ s ⟩) eq my }) (p x mx)
 
-SameEq→Eq : ∀{X} (s t : Pfin X) → SameEq s t → s ≡ t
-SameEq→Eq s t (p₁ , p₂) =
+PfinEq→Eq : ∀{X} {s t : Pfin X} → PfinEq s t → s ≡ t
+PfinEq→Eq {s = s}{t} (p₁ , p₂) =
   antisym≤ (⊂2≤ _ _ (PfinDRel⊆ s t p₁)) (⊂2≤ _ _ (PfinDRel⊆ t s p₂))
 
 -- properties of membership in the image of a finite subset

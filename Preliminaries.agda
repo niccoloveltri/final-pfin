@@ -6,14 +6,30 @@ open import Cubical.Core.Everything
 open import Cubical.Foundations.Everything
 open import Cubical.Data.List renaming (map to mapList)
 open import Cubical.Data.Sigma
+open import Cubical.Data.Sum renaming (inl to inj₁; inr to inj₂; map to map⊎)
 open import Cubical.Functions.Logic 
 
 hProp₀ = hProp ℓ-zero
 
 -- list membership
+infix 21 _∈_
 data _∈_ {ℓ}{X : Type ℓ} (x : X) : List X → Type ℓ where
   here : ∀{xs} → x ∈ (x ∷ xs)
   there : ∀{y xs} → x ∈ xs → x ∈ (y ∷ xs)
+
+++∈ : ∀{ℓ}{X : Type ℓ}{x : X}{xs ys} → x ∈ (xs ++ ys) → x ∈ xs ⊎ x ∈ ys
+++∈ {xs = []} m = inj₂ m
+++∈ {xs = x ∷ xs} here = inj₁ here
+++∈ {xs = x ∷ xs} (there m) = map⊎ there (λ z → z) (++∈ {xs = xs} m)
+
+∈++₁ : ∀{ℓ}{X : Type ℓ}{x : X}{xs ys} → x ∈ xs → x ∈ (xs ++ ys)
+∈++₁ here = here
+∈++₁ (there p) = there (∈++₁ p)
+
+∈++₂ : ∀{ℓ}{X : Type ℓ}{x : X}{xs ys} → x ∈ ys → x ∈ (xs ++ ys)
+∈++₂ {xs = []} m = m
+∈++₂ {xs = x ∷ xs} m = there (∈++₂ m)
+
 
 hereEq : ∀{ℓ}{X : Type ℓ}{x y : X}{xs} → x ≡ y → x ∈ (y ∷ xs)
 hereEq = J (λ z _ → _ ∈ (z ∷ _)) here
