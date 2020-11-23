@@ -23,6 +23,9 @@ open import PfinAsHIT
 SameEls : {A : Type} → List A → List A → Type
 SameEls = Relator _≡_
 
+PfinQ : Type → Type
+PfinQ A = List A / SameEls
+
 DRelatorEq++₁ : {A : Type}{xs ys zs : List A}
   → DRelator _≡_ xs ys → DRelator _≡_ (xs ++ zs) (ys ++ zs)
 DRelatorEq++₁ {xs = xs}{ys} p x mx with ++∈ {xs = xs} mx
@@ -70,8 +73,10 @@ DRelatorEqNr xs x mx with ++∈ {xs = xs} mx
 ... | inj₁ mx' = ∣ x , mx' , refl ∣
 ... | inj₂ ()
 
-PfinQ : Type → Type
-PfinQ A = List A / SameEls
+List→Pfin++ : {A : Type}(xs ys : List A)
+  → List→Pfin (xs ++ ys) ≡ List→Pfin xs ∪ List→Pfin ys
+List→Pfin++ [] ys = sym (com _ _ ∙ nr _)
+List→Pfin++ (x ∷ xs) ys = cong (η x ∪_) (List→Pfin++ xs ys) ∙ ass _ _ _
 
 List→PfinRel : ∀{A}{xs ys : List A}
   → DRelator _≡_ xs ys → PfinDRel _≡_ (List→Pfin xs) (List→Pfin ys)
@@ -112,6 +117,20 @@ PfinQ→Pfin→PfinQ : ∀{A} (s : PfinQ A) → Pfin→PfinQ (PfinQ→Pfin s) �
 PfinQ→Pfin→PfinQ = elimProp (λ _ → squash/ _ _) PfinQ→Pfin→PfinQ'
 
 Pfin→PfinQ→Pfin : ∀{A} (s : Pfin A) → PfinQ→Pfin (Pfin→PfinQ s) ≡ s
-Pfin→PfinQ→Pfin =
+Pfin→PfinQ→Pfin {A} =
   elimPfinProp (λ _ → _ , trunc _ _) refl (λ _ → nr _)
-    λ p q → {!!} ∙ cong₂ _∪_ p q
+    λ {s₁}{s₂} p q →
+      lem (Pfin→PfinQ s₁) (Pfin→PfinQ s₂) ∙ cong₂ _∪_ p q
+  where
+    lem : (s₁ s₂ : PfinQ A)
+      → PfinQ→Pfin (recQ2 squash/ (λ xs ys → [ xs ++ ys ]) _ _ s₁ s₂) ≡
+         PfinQ→Pfin s₁ ∪ PfinQ→Pfin s₂
+    lem = elimProp2 (λ _ _ → trunc _ _) List→Pfin++
+
+Pfin≡PfinQ : ∀{A} → Pfin A ≡ PfinQ A
+Pfin≡PfinQ =
+  isoToPath (iso Pfin→PfinQ PfinQ→Pfin PfinQ→Pfin→PfinQ Pfin→PfinQ→Pfin)
+
+
+
+
