@@ -14,6 +14,8 @@ open import Cubical.HITs.SetQuotients renaming ([_] to eqCl)
 open import Cubical.Data.Sigma
 open import Cubical.Data.List renaming (map to mapList)
 open import Cubical.Data.Empty renaming (elim to ⊥-elim; rec to ⊥-rec)
+open import Cubical.Relation.Binary
+
 open import Preliminaries
 
 -- finitely-branching non-wellfounded trees
@@ -172,3 +174,8 @@ transExtEq : ∀{t t₁ t₂}(j : Size)
 forceExt (transExtEq j p q) {k} =
   transRelator (transExtEq k) (forceExt p) (forceExt q)
 
+isEquivRelExtEq : BinaryRelation.isEquivRel (ExtEq ∞)
+isEquivRelExtEq =
+  BinaryRelation.equivRel (reflExtEq ∞)
+                          (λ _ _ → symExtEq ∞)
+                          (λ _ _ _ → transExtEq ∞)

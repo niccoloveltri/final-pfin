@@ -11,6 +11,12 @@ open import Cubical.Functions.Logic
 
 hProp₀ = hProp ℓ-zero
 
+mapListComp : ∀{ℓ}{X Y Z : Type ℓ}{g : Y → Z}{f : X → Y} (xs : List X)
+  → mapList g (mapList f xs) ≡ mapList (g ∘ f) xs
+mapListComp [] = refl
+mapListComp (x ∷ xs) = cong (_ ∷_) (mapListComp xs)
+
+
 -- list membership
 infix 21 _∈_
 data _∈_ {ℓ}{X : Type ℓ} (x : X) : List X → Type ℓ where
@@ -75,3 +81,7 @@ _∘S_ : ∀{ℓ} {S₁ S₂ S₃ : Setoid ℓ}
   → (g : S₂ →S S₃) (f : S₁ →S S₂)
   → S₁ →S S₃
 (g , gr) ∘S (f , fr) = g ∘ f , gr ∘ fr
+
+Set→Setoid : ∀{ℓ} → hSet ℓ → Setoid ℓ
+Set→Setoid (X , Xset) =
+  setoid X (λ x y → (x ≡ y) , Xset _ _) (λ _ → refl) sym _∙_

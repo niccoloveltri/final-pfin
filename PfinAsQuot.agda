@@ -12,7 +12,7 @@ open import Cubical.HITs.PropositionalTruncation as PropTrunc
 open import Cubical.HITs.SetQuotients
   renaming (rec to recQ; rec2 to recQ2)
 open import Cubical.Data.Sigma
-open import Cubical.Data.List hiding ([_])
+open import Cubical.Data.List renaming (map to mapList) hiding ([_])
 open import Cubical.Data.Sum renaming (map to map⊎; inl to inj₁; inr to inj₂)
 open import Cubical.Data.Empty renaming (elim to ⊥-elim; rec to ⊥-rec)
 open import Cubical.Relation.Binary
@@ -131,6 +131,13 @@ Pfin≡PfinQ : ∀{A} → Pfin A ≡ PfinQ A
 Pfin≡PfinQ =
   isoToPath (iso Pfin→PfinQ PfinQ→Pfin PfinQ→Pfin→PfinQ Pfin→PfinQ→Pfin)
 
+DRelatorMapList : {A B : Type} (f : A → B) {xs ys : List A}
+  → DRelator _≡_ xs ys → DRelator _≡_ (mapList f xs) (mapList f ys)
+DRelatorMapList f p x mx with pre∈mapList mx
+... | y , my , eq =
+  ∥map∥ (λ { (z , mz , eq') → _ , ∈mapList mz , sym eq ∙ cong f eq'}) (p y my)
 
-
+mapPfinQ : ∀{A B} (f : A → B) → PfinQ A → PfinQ B
+mapPfinQ f = recQ squash/ (λ xs → [ mapList f xs ])
+  λ xs ys p → eq/ _ _ (DRelatorMapList f (p .fst) , DRelatorMapList f (p .snd))
 
