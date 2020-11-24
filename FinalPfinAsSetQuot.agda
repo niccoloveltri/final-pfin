@@ -89,31 +89,27 @@ anaPfinQ' =
 -- we assume that θ is an isomorphism, which is equivalent to full
 -- axiom of choice
 
-module _ (ac : ∀ A {B} (R : B → B → Type) → isIso (θ A R)) where
+module _ (θInv : ∀ A {B} (R : B → B → Type) → (A → B / R) → [ A ⇒ B ]/ R)
+         (sectionθ : ∀ A {B} (R : B → B → Type) → section (θ A R) (θInv A R)) where
+
 
   θ1 : ∀{X} → [ X ⇒PfinQ X ] → X → PfinQ X
   θ1 = θ _ _
 
   θ1Inv : ∀ {X} → (X → PfinQ X) → [ X ⇒PfinQ X ]
-  θ1Inv = ac _ _ .fst
+  θ1Inv = θInv _ _
 
-  θ1θ1Inv : ∀{X} (f : X → PfinQ X) → θ1 (θ1Inv f) ≡ f
-  θ1θ1Inv = ac _ _ .snd .fst
-
-  θ1Invθ1 : ∀{X} (f : [ X ⇒PfinQ X ]) → θ1Inv (θ1 f) ≡ f
-  θ1Invθ1 = ac _ _ .snd .snd
+  sectionθ1 : ∀{X} (f : X → PfinQ X) → θ1 (θ1Inv f) ≡ f
+  sectionθ1 = sectionθ _ _
 
   θ2 : ∀{X} → [ X ⇒νPfinQ] → X → νPfinQ
   θ2 = θ _ _
 
   θ2Inv : ∀ {X} → (X → νPfinQ) → [ X ⇒νPfinQ]
-  θ2Inv = ac _ _ .fst
+  θ2Inv = θInv _ _ 
 
-  θ2θ2Inv : ∀{X} (f : X → νPfinQ) → θ2 (θ2Inv f) ≡ f
-  θ2θ2Inv = ac _ _ .snd .fst
-
-  θ2Invθ2 : ∀{X} (f : [ X ⇒νPfinQ]) → θ2Inv (θ2 f) ≡ f
-  θ2Invθ2 = ac _ _ .snd .snd
+  sectionθ2 : ∀{X} (f : X → νPfinQ) → θ2 (θ2Inv f) ≡ f
+  sectionθ2 = sectionθ _ _
 
   anaPfinQ : {X : Type} (c : X → PfinQ X)
     → X → νPfinQ
@@ -128,13 +124,13 @@ module _ (ac : ∀ A {B} (R : B → B → Type) → isIso (θ A R)) where
   anaPfinQEq : {X : Type} (c : X → PfinQ X)
     → ∀ x → ξ (anaPfinQ c x) ≡ mapPfinQ (anaPfinQ c) (c x)
   anaPfinQEq c x =
-    anaPfinQEq' (θ1Inv c) x ∙ cong (λ f → mapPfinQ (anaPfinQ c) (f x)) (θ1θ1Inv c)
+    anaPfinQEq' (θ1Inv c) x ∙ cong (λ f → mapPfinQ (anaPfinQ c) (f x)) (sectionθ1 c)
 
   anaPfinQUniq'' : {X : Type} (Xset : isSet X) (c : X → List X)
     → (f : [ X ⇒νPfinQ]) (feq : ∀ x → ξ (θ2 f x) ≡ mapPfinQ (θ2 f) [ c x ])
     → ∀ x → θ2 f x ≡ anaPfinQ' [ c ] x
   anaPfinQUniq'' Xset c =
-    elimProp {!!}
+    elimProp (λ _ → isPropΠ (λ _ → isPropΠ (λ _ → squash/ _ _)))
       (λ f feq x → eq/ _ _
         (anaPfinUniq' (Set→Setoid (_ , Xset))
                       (c , λ eq → subst (λ z → Relator _≡_ (c _) (c z)) eq (reflRelator (λ _ → refl) _))
@@ -143,25 +139,36 @@ module _ (ac : ∀ A {B} (R : B → B → Type) → isIso (θ A R)) where
                         (λ t mt →
                           ∥rec∥ propTruncIsProp (uncurry (elimProp (λ _ → isPropΠ λ _ → propTruncIsProp)
                               λ { t' (mt' , eq') → ∣ _ , ∈mapList (pre∈mapList mt' .snd .fst) ,
-                                  transExtEq ∞ (effective isPropExtEq isEquivRelExtEq _ _ eq')
-                                               (symExtEq ∞ (effective isPropExtEq isEquivRelExtEq _ _ (pre∈mapList mt' .snd .snd))) ∣ } ))
-                            (effective {!isPropSameEls!} {!!} _ _ (feq y) .fst [ t ] (∈mapList mt))) ,
-                        (λ t mt → {!!}))
+                                  effective isPropExtEq isEquivRelExtEq _ _ (eq' ∙ sym (pre∈mapList mt' .snd .snd)) ∣ } ))
+                            (effective isPropSameEls isEquivRelSameEls _ _ (feq y) .fst [ t ] (∈mapList mt))) ,
+                        (λ t mt → ∥rec∥ propTruncIsProp (uncurry (elimProp (λ _ → isPropΠ λ _ → propTruncIsProp)
+                              λ {t' (mt' , eq') → ∣ _ , pre∈mapList mt' .snd .fst ,
+                                  effective isPropExtEq isEquivRelExtEq  _ _ (eq' ∙ sym (pre∈mapList mt' .snd .snd)) ∣ }))
+                          (effective isPropSameEls isEquivRelSameEls _ _ (feq y) .snd [ t ] (subst ([ t ] ∈_) (mapListComp (c y)) (∈mapList mt)))))
                       ∞
                       x))
 
 
-  anaPfinQUniq' : {X : Type} (c : [ X ⇒PfinQ X ])
+  anaPfinQUniq' : {X : Type} (Xset : isSet X) (c : [ X ⇒PfinQ X ])
     → (f : X → νPfinQ) (feq : ∀ x → ξ (f x) ≡ mapPfinQ f (θ1 c x))
     → ∀ x → f x ≡ anaPfinQ' c x
-  anaPfinQUniq' =
+  anaPfinQUniq' Xset =
     elimProp
       (λ _ → isPropΠ (λ _ → isPropΠ (λ _ → isPropΠ (λ _ → squash/ _ _))))
-      (λ c → {!!})
+      (λ c f feq x → (λ i → sym (sectionθ2 f) i x)
+                      ∙ anaPfinQUniq'' Xset c (θ2Inv f)
+                          (λ y → (λ i → ξ (sectionθ2 f i y) )
+                                  ∙ feq y
+                                  ∙ cong (λ g → [ mapList g (c y) ]) (sym (sectionθ2 f)))
+                          x)
       
-  anaPfinQUniq : {X : Type} (c : X → PfinQ X)
+  anaPfinQUniq : {X : Type} (Xset : isSet X) (c : X → PfinQ X)
     → (f : X → νPfinQ) (feq : ∀ x → ξ (f x) ≡ mapPfinQ f (c x))
     → ∀ x → f x ≡ anaPfinQ c x
-  anaPfinQUniq c = {!!}
+  anaPfinQUniq Xset c f feq x =
+    anaPfinQUniq' Xset (θ1Inv c) f
+      (λ y → feq y ∙ λ i → mapPfinQ f (sectionθ1 c (~ i) y))
+      x
+    
 
   

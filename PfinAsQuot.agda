@@ -23,6 +23,15 @@ open import PfinAsHIT
 SameEls : {A : Type} → List A → List A → Type
 SameEls = Relator _≡_
 
+isPropSameEls : ∀{A} (xs ys : List A) → isProp (SameEls xs ys)
+isPropSameEls = isPropRelator _ 
+
+isEquivRelSameEls : ∀{A} → BinaryRelation.isEquivRel (SameEls {A})
+isEquivRelSameEls =
+  BinaryRelation.equivRel (reflRelator (λ _ → refl))
+                          (λ _ _ r → r .snd , r .fst)
+                          (λ _ _ _ → transRelator _∙_)
+                          
 PfinQ : Type → Type
 PfinQ A = List A / SameEls
 
