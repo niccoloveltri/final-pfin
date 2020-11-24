@@ -20,6 +20,7 @@ open import Preliminaries
 open import Trees
 open import PfinAsHIT
 
+-- the relation relating lists with the same elements
 SameEls : {A : Type} → List A → List A → Type
 SameEls = Relator _≡_
 
@@ -32,9 +33,11 @@ isEquivRelSameEls =
                           (λ _ _ r → r .snd , r .fst)
                           (λ _ _ _ → transRelator _∙_)
                           
+-- finite powerset as a quotient of lists
 PfinQ : Type → Type
 PfinQ A = List A / SameEls
 
+-- many lemmata, mostly about about DRelator _≡_
 DRelatorEq++₁ : {A : Type}{xs ys zs : List A}
   → DRelator _≡_ xs ys → DRelator _≡_ (xs ++ zs) (ys ++ zs)
 DRelatorEq++₁ {xs = xs}{ys} p x mx with ++∈ {xs = xs} mx
@@ -95,6 +98,8 @@ List→PfinRel p x mx =
       ∥map∥ (λ { (y , my , eq) → (y , List→Pfin∈ _ my , eq) }) (p x mx'))
     (∈ₛList→Pfin _ mx)
 
+-- the two presentation of finite powerset (as a quotient and as the
+-- free join semilattice) are equal
 PfinQ→Pfin : ∀{A} → PfinQ A → Pfin A
 PfinQ→Pfin = recQ trunc List→Pfin
     λ xs ys p → PfinEq→Eq (List→PfinRel (p .fst) , List→PfinRel (p .snd))
@@ -140,6 +145,7 @@ Pfin≡PfinQ : ∀{A} → Pfin A ≡ PfinQ A
 Pfin≡PfinQ =
   isoToPath (iso Pfin→PfinQ PfinQ→Pfin PfinQ→Pfin→PfinQ Pfin→PfinQ→Pfin)
 
+-- action on functions of PfinQ
 DRelatorMapList : {A B : Type} (f : A → B) {xs ys : List A}
   → DRelator _≡_ xs ys → DRelator _≡_ (mapList f xs) (mapList f ys)
 DRelatorMapList f p x mx with pre∈mapList mx

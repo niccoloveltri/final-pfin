@@ -19,19 +19,13 @@ open import Preliminaries
 open import Trees
 open import PfinAsQuot
 open import FinalPfinAsSetoid
+open BinaryRelation
 
+-- the final coalgebra of PfinQ as quotient of trees
 νPfinQ : Type
 νPfinQ = Tree ∞ / ExtEq ∞
 
-SameEls→RelatorExtEq : {xs ys : List (Tree ∞)}
-  → SameEls xs ys → Relator (ExtEq ∞) xs ys
-SameEls→RelatorExtEq (p , q) =
-  (λ x mx →
-    ∥map∥ (λ {(y , my , eq) → y , my , subst (ExtEq ∞ x) eq (reflExtEq ∞ x) }) (p x mx)) ,
-  (λ x mx →
-    ∥map∥ (λ {(y , my , eq) → y , my , subst (ExtEq ∞ x) eq (reflExtEq ∞ x) }) (q x mx))
-
-
+-- νPfinQ is a coalgebra for the functor PfinQ
 ξRel : ∀ ts ts' → DRelator (ExtEq ∞) ts ts'
   → DRelator _≡_ (mapList {B = νPfinQ} [_] ts) (mapList [_] ts')
 ξRel ts ts' p c mc with pre∈mapList mc
@@ -42,17 +36,16 @@ SameEls→RelatorExtEq (p , q) =
 ξ = recQ squash/ (λ t → [ mapList [_] (force t) ])
   λ t t' p → eq/ _ _ (ξRel _ _ (forceExt p .fst) , ξRel _ _ (forceExt p .snd))
 
-PW : {X A B : Type} (R : A → B → Type) → (X → A) → (X → B) → Type
-PW R f g = ∀ x → R (f x) (g x)
-
-[_⇒_]/_ : (A B : Type) (R : B → B → Type) → Type
-[ A ⇒ B ]/ R = (A → B) / PW R
-
+-- two quotients of function spaces
 [_⇒PfinQ_] : (A B : Type) → Type
 [ A ⇒PfinQ B ] = [ A ⇒ (List B) ]/ SameEls
 
 [_⇒νPfinQ] : (A : Type) → Type
 [ A ⇒νPfinQ] = [ A ⇒ Tree ∞ ]/ ExtEq ∞
+
+-- towards the construction of the anamorphism: there exists a map
+-- from X to νPfinQ, provided that X comes with a "coalgebra"
+-- c : [ X ⇒PfinQ X ]
 
 anaTreeRelCoalg : ∀{X}(c c' : X → List X)
   → (∀ x → SameEls (c x) (c' x)) → (j : Size) (x : X)
@@ -82,16 +75,13 @@ anaPfinQ' =
   recQ (isSetΠ (λ _ → squash/)) (λ c x → [ anaTree c ∞ x ])
     λ c c' rc → funExt (λ x → eq/ _ _ (anaTreeRelCoalg c c' rc ∞ x)) 
 
-θ : ∀ A {B} (R : B → B → Type) → [ A ⇒ B ]/ R → A → B / R
-θ A R = recQ (isSetΠ (λ _ → squash/)) (λ c x → [ c x ])
-  λ c c' r → funExt (λ x → eq/ _ _ (r x))
-
--- we assume that θ is an isomorphism, which is equivalent to full
--- axiom of choice
+-- the construction of the anamorphism;
+-- for this to work, we assume that θ has a section, i.e. it is a
+-- split epimorphism; this is equivalent to full axiom of choice (the
+-- equivalence is proved in the end of the file)
 
 module _ (θInv : ∀ A {B} (R : B → B → Type) → (A → B / R) → [ A ⇒ B ]/ R)
          (sectionθ : ∀ A {B} (R : B → B → Type) → section (θ A R) (θInv A R)) where
-
 
   θ1 : ∀{X} → [ X ⇒PfinQ X ] → X → PfinQ X
   θ1 = θ _ _
@@ -115,6 +105,8 @@ module _ (θInv : ∀ A {B} (R : B → B → Type) → (A → B / R) → [ A ⇒
     → X → νPfinQ
   anaPfinQ c = anaPfinQ' (θ1Inv c)
 
+
+-- the anamorphism is a coalgebra morphism
   anaPfinQEq' : {X : Type} (c : [ X ⇒PfinQ X ])
     → ∀ x → ξ (anaPfinQ' c x) ≡ mapPfinQ (anaPfinQ' c) (θ1 c x)
   anaPfinQEq' =
@@ -126,6 +118,7 @@ module _ (θInv : ∀ A {B} (R : B → B → Type) → (A → B / R) → [ A ⇒
   anaPfinQEq c x =
     anaPfinQEq' (θ1Inv c) x ∙ cong (λ f → mapPfinQ (anaPfinQ c) (f x)) (sectionθ1 c)
 
+-- uniqueness
   anaPfinQUniq'' : {X : Type} (Xset : isSet X) (c : X → List X)
     → (f : [ X ⇒νPfinQ]) (feq : ∀ x → ξ (θ2 f x) ≡ mapPfinQ (θ2 f) [ c x ])
     → ∀ x → θ2 f x ≡ anaPfinQ' [ c ] x
