@@ -10,7 +10,7 @@ open import Cubical.Functions.Logic renaming (⊥ to ⊥ₚ)
 open import Cubical.Relation.Everything
 open import Cubical.HITs.PropositionalTruncation as PropTrunc
   renaming (map to ∥map∥; rec to ∥rec∥)
-open import Cubical.HITs.SetQuotients renaming ([_] to eqCl)
+open import Cubical.HITs.SetQuotients renaming ([_] to eqCl; rec to recQ)
 open import Cubical.Data.Sigma
 open import Cubical.Data.Nat
 open import Cubical.Data.Sum
@@ -58,6 +58,108 @@ iterPfinSeqS = iterPfinS , iterMapPfinS
 
 ωPfinS : Setoid₀
 ωPfinS = ωLimitS iterPfinSeqS
+
+[]Ch : ∀ n → iterPfinS n .Carr
+[]Ch zero = tt
+[]Ch (suc n) = []
+
+[]Pr : ∀ n → iterPfinS n .Rel (iterMapPfinS n .mor []) ([]Ch n)
+[]Pr zero = tt
+[]Pr (suc n) = (λ { _ () }) , (λ { _ () })
+
+ω[] : ωPfinS .Carr
+ω[] = []Ch , []Pr
+
+_ω++Ch_ :  (s s' : ∀ n → iterPfinS n .Carr) → ∀ n → iterPfinS n .Carr
+(s ω++Ch s') zero = tt
+(s ω++Ch s') (suc n) = s (suc n) ++ s' (suc n)
+
+ω++Pr :  ∀ (s s' : ωPfinS .Carr) n
+  → iterPfinS n .Rel (iterMapPfinS n .mor (s .fst (suc n) ++ s' .fst (suc n))) ((s .fst ω++Ch s' .fst) n)
+ω++Pr s s' zero = tt
+ω++Pr (s , sr) (s' , sr') (suc n) = lem1 , lem2
+  where
+    lem1 : _
+    lem1 x mx with ++∈ {xs = s (suc (suc n))} (pre∈mapList mx .snd .fst)
+    ... | _⊎_.inl m =
+      ∥map∥ (λ { (y , my , r) → _ , ∈++₁ {xs = s (suc n)} my ,
+                                iterPfinS n .eqrRel .transitive _ _ _
+                                          (subst (Rel (iterPfinS n) x) (sym (pre∈mapList mx .snd .snd))
+                                                 (iterPfinS n .eqrRel .reflexive _))
+                                          r })
+            (sr (suc n) .fst _ (∈mapList m)) 
+    ... | _⊎_.inr m = 
+      ∥map∥ (λ { (y , my , r) → _ , ∈++₂ {xs = s (suc n)} my ,
+                                iterPfinS n .eqrRel .transitive _ _ _
+                                          (subst (Rel (iterPfinS n) x) (sym (pre∈mapList mx .snd .snd))
+                                                 (iterPfinS n .eqrRel .reflexive _))
+                                          r })
+            (sr' (suc n) .fst _ (∈mapList m)) 
+
+    lem2 : _
+    lem2 x mx with ++∈ {xs = s (suc n)} mx
+    ... | _⊎_.inl m =
+      ∥map∥ (λ { (y , my , r) → _ , subst (y ∈_) (sym (mapList++ (s (suc (suc n))) _)) (∈++₁ my) , r })
+            (sr (suc n) .snd _ m)
+    ... | _⊎_.inr m = 
+      ∥map∥ (λ { (y , my , r) → _ , subst (y ∈_) (sym (mapList++ (s (suc (suc n))) _)) (∈++₂ my) , r })
+            (sr' (suc n) .snd _ m)
+
+
+_ω++_ :  ωPfinS .Carr → ωPfinS .Carr → ωPfinS .Carr
+s ω++ s' = (s .fst ω++Ch s' .fst) , ω++Pr s s'
+
+algωPfinMor : List (ωPfinS .Carr) → ωPfinS .Carr
+algωPfinMor [] = ω[]
+algωPfinMor (x ∷ xs) = x ω++ (algωPfinMor xs)
+
+∈algωPfinMor : ∀ {s} {y : ωPfinS .Carr} {n z} → y ∈ s
+  → z ∈ y .fst (suc n) → z ∈ algωPfinMor s .fst (suc n)
+∈algωPfinMor here mz = ∈++₁ mz
+∈algωPfinMor (there my) mz = ∈++₂ (∈algωPfinMor my mz)
+
+algωPfinMor∈ : ∀ s {n} {x : iterPfinS n .Carr} 
+  → x ∈ algωPfinMor s .fst (suc n) → Σ[ y ∈ _ ] y ∈ s × x ∈ y .fst (suc n) 
+algωPfinMor∈ ((t , tr) ∷ s) {n} mx with ++∈ {xs = t (suc n)} mx
+... | _⊎_.inl m = (t , tr) , here , m
+... | _⊎_.inr m with algωPfinMor∈ s m
+... | (y , my , mx') = y , there my , mx'
+
+algωPfinMorRel' : ∀ s s' → DRelator (Rel ωPfinS) s s'
+  → ∀ n → DRelator (iterPfinS n .Rel) (algωPfinMor s .fst (suc n)) (algωPfinMor s' .fst (suc n))
+algωPfinMorRel' (t ∷ s) [] p n x mx = ∥map∥ (λ { (_ , () , _) }) (p _ here)
+algωPfinMorRel' ((t , tr) ∷ s) ((t' , tr') ∷ s') p n x mx with ++∈ {xs = t (suc n)} mx
+... | _⊎_.inl m =
+  ∥rec∥ propTruncIsProp
+    (λ { (._ , here , r) →
+         ∥map∥ (λ { (z , mz , r') → z , ∈++₁ mz , r' })
+              (r (suc n) .fst _ m)
+       ; (y , there my , r) →
+         ∥map∥ (λ { (z , mz , r') → z , ∈++₂ (∈algωPfinMor my mz) , r' })
+               (r (suc n) .fst _ m) })
+        (p _ here)
+... | _⊎_.inr m =
+  ∥rec∥ propTruncIsProp
+    (λ { (._ , here , r) →
+         ∥map∥ (λ { (z , mz , r') → z , ∈++₁ mz , r'})
+               (r (suc n) .fst _ (algωPfinMor∈ s m .snd .snd))
+       ; (y , there my , r) → 
+         ∥map∥ (λ { (z , mz , r') → z , ∈++₂ (∈algωPfinMor my mz) , r' })
+               (r (suc n) .fst _ (algωPfinMor∈ s m .snd .snd)) })
+    (p _ (there (algωPfinMor∈ s m .snd .fst)))
+
+
+
+algωPfinMorRel : (s s' : List (ωPfinS .Carr))
+  → Relator (ωPfinS .Rel) s s'
+  → ∀ n → iterPfinS n .Rel (algωPfinMor s .fst n) (algωPfinMor s' .fst n)
+algωPfinMorRel s s' r zero = tt
+algωPfinMorRel s s' (p , q) (suc n) =
+  algωPfinMorRel' s s' p n , algωPfinMorRel' s' s q n
+
+algωPfinS : PfinS ωPfinS →S ωPfinS
+algωPfinS = algωPfinMor , algωPfinMorRel _ _
+
 
 growingCh : ∀ n → iterPfinS n .Carr
 growingCh zero = tt
@@ -132,82 +234,60 @@ growingPr (suc (suc n)) with growingPr (suc n)
 growing : ωPfinS .Carr
 growing = growingCh ,  growingPr
 
+{-
 lengthGrowingCh : ∀ n → length (growingCh (suc n)) ≡ suc n
 lengthGrowingCh zero = refl
 lengthGrowingCh (suc n) = cong suc (lengthMapList (growingCh (suc n)) ∙ lengthGrowingCh n)
+-}
 
-[]Ch : ∀ n → iterPfinS n .Carr
-[]Ch zero = tt
-[]Ch (suc n) = []
+PTrunc' : Type → Type
+PTrunc' A = A / λ _ _ → Unit
 
-[]Pr : ∀ n → iterPfinS n .Rel (iterMapPfinS n .mor []) ([]Ch n)
-[]Pr zero = tt
-[]Pr (suc n) = (λ { _ () }) , (λ { _ () })
+→PTrunc' : ∀{A} → ∥ A ∥ → PTrunc' A
+→PTrunc' = ∥rec∥ (elimProp2 (λ _ _ → squash/ _ _) (λ _ _ → eq/ _ _ _)) _/_.[_]
 
-ω[] : ωPfinS .Carr
-ω[] = []Ch , []Pr
+canon[]∈ : {A : Type}(xs : List (List A)) → [] ∈ xs → [] ∈ xs
+canon[]∈ ([] ∷ xss) _ = here
+canon[]∈ ((x ∷ xs) ∷ xss) (there m) = there (canon[]∈ xss m)
 
-_ω++Ch_ :  (s s' : ∀ n → iterPfinS n .Carr) → ∀ n → iterPfinS n .Carr
-(s ω++Ch s') zero = tt
-(s ω++Ch s') (suc n) = s (suc n) ++ s' (suc n)
+canon[]∈IsConst : {A : Type}(xs : List (List A))
+  → (p q : [] ∈ xs) → canon[]∈ xs p ≡ canon[]∈ xs q
+canon[]∈IsConst ([] ∷ xss) p q = refl
+canon[]∈IsConst ((x ∷ xs) ∷ xss) (there p) (there q) =
+  cong there (canon[]∈IsConst xss p q)
 
-ω++Pr :  ∀ (s s' : ωPfinS .Carr) n
-  → iterPfinS n .Rel (iterMapPfinS n .mor (s .fst (suc n) ++ s' .fst (suc n))) ((s .fst ω++Ch s' .fst) n)
-ω++Pr s s' zero = tt
-ω++Pr (s , sr) (s' , sr') (suc n) = lem1 , lem2
+hStable[]∈' : {A : Type}(xs : List (List A)) → PTrunc' ([] ∈ xs) → [] ∈ xs
+hStable[]∈' xs = recQ {!!} (canon[]∈ xs) (λ p q _ → canon[]∈IsConst xs p q)
+
+hStable[]∈ : {A : Type}(xs : List (List A)) → ∥ [] ∈ xs ∥ → [] ∈ xs
+hStable[]∈ xs m = hStable[]∈' xs (→PTrunc' m)
+
+check : ∀ (y : ωPfinS .Carr) n → [] ∈ y .fst (suc (suc (suc n))) → [] ∈ y .fst (suc (suc n))
+check y n m = hStable[]∈ _
+  (∥map∥ (λ { ([] , mx , r) → mx
+           ; (x ∷ x₁ , mx , r) → {!r .snd _ here --imp!} }) (y .snd (suc (suc n)) .fst [] (∈mapList m)))
+
+noSurjAlgωPfinS : (t : PfinS ωPfinS .Carr) → ωPfinS .Rel (algωPfinS .mor t) growing → ⊥
+--noSurjAlgωPfinS [] r = ∥rec∥ isProp⊥ (λ { (_ , () , _) }) (r 1 .snd tt here)
+noSurjAlgωPfinS s r = {!!}
   where
-    lem1 : _
-    lem1 x mx with ++∈ {xs = s (suc (suc n))} (pre∈mapList mx .snd .fst)
-    ... | _⊎_.inl m =
-      ∥map∥ (λ { (y , my , r) → _ , ∈++₁ {xs = s (suc n)} my ,
-                                iterPfinS n .eqrRel .transitive _ _ _
-                                          (subst (Rel (iterPfinS n) x) (sym (pre∈mapList mx .snd .snd))
-                                                 (iterPfinS n .eqrRel .reflexive _))
-                                          r })
-            (sr (suc n) .fst _ (∈mapList m)) 
-    ... | _⊎_.inr m = 
-      ∥map∥ (λ { (y , my , r) → _ , ∈++₂ {xs = s (suc n)} my ,
-                                iterPfinS n .eqrRel .transitive _ _ _
-                                          (subst (Rel (iterPfinS n) x) (sym (pre∈mapList mx .snd .snd))
-                                                 (iterPfinS n .eqrRel .reflexive _))
-                                          r })
-            (sr' (suc n) .fst _ (∈mapList m)) 
+    lem : ∀ n → [] ∈ algωPfinS .mor s .fst (suc (suc n))
+    lem n =
+      hStable[]∈ _ (∥rec∥ propTruncIsProp
+        (λ { ([] , mx , rx) → ∣ mx ∣
+          ; (x ∷ xs , mx , rx) → ∥map∥ (λ { (_ , () , _) }) (rx .snd _ here) })
+        (r (suc (suc n)) .snd _ here))
 
-    lem2 : _
-    lem2 x mx with ++∈ {xs = s (suc n)} mx
-    ... | _⊎_.inl m =
-      ∥map∥ (λ { (y , my , r) → _ , subst (y ∈_) (sym (mapList++ (s (suc (suc n))) _)) (∈++₁ my) , r })
-            (sr (suc n) .snd _ m)
-    ... | _⊎_.inr m = 
-      ∥map∥ (λ { (y , my , r) → _ , subst (y ∈_) (sym (mapList++ (s (suc (suc n))) _)) (∈++₂ my) , r })
-            (sr' (suc n) .snd _ m)
+    lem' : ∀ n → Σ[ y ∈ ωPfinS .Carr ] (y ∈ s) × [] ∈ y .fst (suc (suc n))
+    lem' n = algωPfinMor∈ s (lem n)
 
+{-
+noSurjAlgωPfinS [] r = ∥rec∥ isProp⊥ (λ { (_ , () , _) }) (r 1 .snd tt here)
+noSurjAlgωPfinS ((t , tr) ∷ ts) r = {!!}
+  where
+    r' : ∀ n → DRelator (Relator (iterPfinS n .Rel)) ([] ∷ mapList sing (growingCh (suc n))) (t (suc (suc n)) ++ algωPfinMor ts .fst (suc (suc n)))
+    r' n = r (suc (suc n)) .snd
 
-_ω++_ :  ωPfinS .Carr → ωPfinS .Carr → ωPfinS .Carr
-s ω++ s' = (s .fst ω++Ch s' .fst) , ω++Pr s s'
-
-algωPfinMor : List (ωPfinS .Carr) → ωPfinS .Carr
-algωPfinMor [] = ω[]
-algωPfinMor (x ∷ xs) = x ω++ (algωPfinMor xs)
-
-∈algωPfinMor : ∀ s {y} n → y ∈ s → y .fst n ∈ algωPfinMor s .fst (suc n)
-∈algωPfinMor (x ∷ s) n here = ∈++₁ {xs = x .fst (suc n)} {!x!}
-∈algωPfinMor (x ∷ s) n (there m) = ∈++₂ (∈algωPfinMor s n m)
-
-algωPfinMorRel' : ∀ s s' → DRelator (Rel ωPfinS) s s'
-  → ∀ n → DRelator (Rel (iterPfinS n)) (algωPfinMor s .fst (suc n)) (algωPfinMor s' .fst (suc n))
-algωPfinMorRel' (t ∷ s) s' p n x mx with ++∈ {xs = t .fst (suc n)} mx
-... | _⊎_.inl m =
-  ∥map∥ (λ { (y , my , r) → {!y .fst n!} , {!!} , {!!} })
-        (p _ here)
-... | _⊎_.inr m = {!!}
-
-algωPfinMorRel : ∀ s s' → PfinS ωPfinS .Rel s s'
-  → ωPfinS .Rel (algωPfinMor s) (algωPfinMor s')
-algωPfinMorRel s s' (p , q) zero = tt
-algωPfinMorRel s s' (p , q) (suc n) =
-  {!!} ,
-  {!!}
-
-algωPfinS : PfinS ωPfinS →S ωPfinS
-algωPfinS = algωPfinMor , algωPfinMorRel _ _
+    r'' : ∀ n → {!r' n _ here !}
+    r'' n = {!!}
+-}
