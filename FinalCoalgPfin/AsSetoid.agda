@@ -14,20 +14,22 @@ open import Cubical.HITs.SetQuotients renaming ([_] to eqCl)
 open import Cubical.Data.Sigma
 open import Cubical.Data.List renaming (map to mapList)
 open import Cubical.Data.Empty renaming (elim to ⊥-elim; rec to ⊥-rec)
+open import Cubical.Relation.Binary hiding (Rel)
+open BinaryRelation
+open isEquivRel
 open import Preliminaries
 open import Trees
+
 
 -- the finite powerset functor on setoids
 
 PfinS : Setoid₀ → Setoid₀
-PfinS (setoid A R reflR symR transR) =
-  setoid (List A) (Relatorₚ R)
-    (reflRelator reflR) symRelator (transRelator transR)
+PfinS (setoid A R propR eqrR) =
+  setoid (List A) (Relator R) (isPropRelator R) (isEquivRelRelator eqrR)
 
 -- the final coalgebra of PfinS
 νPfinS : Setoid₀
-νPfinS = setoid (Tree ∞) (ExtEqₚ)
-  (reflExtEq ∞) (symExtEq ∞) (transExtEq ∞)
+νPfinS = setoid (Tree ∞) (ExtEq ∞) isPropExtEq isEquivRelExtEq
 
 forceS : νPfinS →S PfinS νPfinS
 forceS = (λ x → force x) , (λ r → forceExt r)
@@ -39,12 +41,12 @@ mapPfinS {_}{S₂} (f , fr) = mapList f ,
      (λ x mx →
        ∥map∥
          (λ { (y , my , r) → f y , ∈mapList my ,
-              S₂ .transRel (subst (λ z → ⟨ S₂ .Rel x z ⟩) (sym (pre∈mapList mx .snd .snd)) (S₂ .reflRel _)) (fr r) })
+              S₂ .eqrRel .transitive _ _ _ (subst (S₂ .Rel x) (sym (pre∈mapList mx .snd .snd)) (S₂ .eqrRel .reflexive _)) (fr r) })
          (p _ (pre∈mapList mx .snd .fst))) ,
      (λ x mx →
        ∥map∥
          (λ { (y , my , r) → f y , ∈mapList my ,
-              S₂ .transRel (subst (λ z → ⟨ S₂ .Rel x z ⟩) (sym (pre∈mapList mx .snd .snd)) (S₂ .reflRel _)) (fr r) })
+              S₂ .eqrRel .transitive _ _ _ (subst (S₂ .Rel x) (sym (pre∈mapList mx .snd .snd)) (S₂ .eqrRel .reflexive _)) (fr r) })
          (q _ (pre∈mapList mx .snd .fst))) })
 
 module _
@@ -57,7 +59,7 @@ module _
 
 
 -- the function anaTree is compatible (respects the relations)
-  anaTreeRel : ∀ {x y} → ⟨ S .Rel x y ⟩ → (j : Size)
+  anaTreeRel : ∀ {x y} → S .Rel x y → (j : Size)
     → ExtEq j (anaTree c ∞ x) (anaTree c ∞ y)
   forceExt (anaTreeRel r j) {k} =
     (λ x mx →

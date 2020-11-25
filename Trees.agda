@@ -15,6 +15,7 @@ open import Cubical.Data.Sigma
 open import Cubical.Data.List renaming (map to mapList)
 open import Cubical.Data.Empty renaming (elim to ⊥-elim; rec to ⊥-rec)
 open import Cubical.Relation.Binary
+open BinaryRelation
 
 open import Preliminaries
 
@@ -146,6 +147,13 @@ transRelator : ∀{ℓ}{X : Type ℓ} {R : X → X → Type ℓ}
 transRelator transR (p , q) (p' , q') =
   transDRelator transR p p' , transDRelator transR q' q
 
+isEquivRelRelator : ∀{ℓ}{X : Type ℓ} {R : X → X → Type ℓ}
+  → isEquivRel R → isEquivRel (Relator R)
+isEquivRelRelator (equivRel reflR _ transR) =
+  equivRel (reflRelator reflR)
+           (λ _ _ r → r .snd , r .fst)
+           λ _ _ _ → transRelator (transR _ _ _)
+
 -- coinductive closure of the relator, which gives a notion of extensional
 -- equality of trees
 record ExtEq (i : Size) (t₁ t₂ : Tree ∞) : Type where
@@ -174,8 +182,8 @@ transExtEq : ∀{t t₁ t₂}(j : Size)
 forceExt (transExtEq j p q) {k} =
   transRelator (transExtEq k) (forceExt p) (forceExt q)
 
-isEquivRelExtEq : BinaryRelation.isEquivRel (ExtEq ∞)
+isEquivRelExtEq : isEquivRel (ExtEq ∞)
 isEquivRelExtEq =
-  BinaryRelation.equivRel (reflExtEq ∞)
-                          (λ _ _ → symExtEq ∞)
-                          (λ _ _ _ → transExtEq ∞)
+  equivRel (reflExtEq ∞)
+           (λ _ _ → symExtEq ∞)
+           (λ _ _ _ → transExtEq ∞)

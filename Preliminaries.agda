@@ -4,8 +4,10 @@ module Preliminaries where
 
 open import Cubical.Core.Everything
 open import Cubical.Foundations.Everything
-open import Cubical.Data.List renaming (map to mapList) hiding ([_])
+open import Cubical.Data.List renaming (map to mapList; [_] to sing)
 open import Cubical.Data.Sigma
+open import Cubical.Data.Unit
+open import Cubical.Data.Nat
 open import Cubical.Data.Sum renaming (inl to inj₁; inr to inj₂; map to map⊎)
 open import Cubical.Functions.Logic 
 open import Cubical.HITs.SetQuotients renaming (rec to recQ)
@@ -28,6 +30,9 @@ data _∈_ {ℓ}{X : Type ℓ} (x : X) : List X → Type ℓ where
   here : ∀{xs} → x ∈ (x ∷ xs)
   there : ∀{y xs} → x ∈ xs → x ∈ (y ∷ xs)
 
+∈sing : ∀{ℓ}{X : Type ℓ}{x y : X} → x ∈ sing y → x ≡ y
+∈sing here = refl
+
 ++∈ : ∀{ℓ}{X : Type ℓ}{x : X}{xs ys} → x ∈ (xs ++ ys) → x ∈ xs ⊎ x ∈ ys
 ++∈ {xs = []} m = inj₂ m
 ++∈ {xs = x ∷ xs} here = inj₁ here
@@ -44,6 +49,16 @@ data _∈_ {ℓ}{X : Type ℓ} (x : X) : List X → Type ℓ where
 
 hereEq : ∀{ℓ}{X : Type ℓ}{x y : X}{xs} → x ≡ y → x ∈ (y ∷ xs)
 hereEq = J (λ z _ → _ ∈ (z ∷ _)) here
+
+lengthMapList : ∀{ℓ}{A B : Type ℓ}{f : A → B}(xs : List A)
+  → length (mapList f xs) ≡ length xs
+lengthMapList [] = refl
+lengthMapList (x ∷ xs) = cong suc (lengthMapList xs)
+
+mapList++ : ∀{ℓ}{A B : Type ℓ}{f : A → B}(xs ys : List A)
+  → mapList f (xs ++ ys) ≡ mapList f xs ++ mapList f ys
+mapList++ [] ys = refl
+mapList++ (x ∷ xs) ys = cong (_ ∷_) (mapList++ xs ys)
 
 -- properties of membership in the image of a list
 ∈mapList : {A B : Type} {f : A → B} {a : A} {xs : List A}
@@ -63,23 +78,33 @@ record Setoid ℓ : Type (ℓ-suc ℓ) where
   constructor setoid
   field
     Carr : Type ℓ
-    Rel : Carr → Carr → hProp ℓ
-    reflRel : ∀ x → ⟨ Rel x x ⟩
-    symRel : ∀{x y} → ⟨ Rel x y ⟩ → ⟨ Rel y x ⟩
-    transRel : ∀{x y z} → ⟨ Rel x y ⟩ → ⟨ Rel y z ⟩ → ⟨ Rel x z ⟩
+    Rel : Carr → Carr → Type ℓ
+    propRel : isPropValued Rel
+    eqrRel : isEquivRel Rel
+--    reflRel : ∀ x → ⟨ Rel x x ⟩
+--    symRel : ∀{x y} → ⟨ Rel x y ⟩ → ⟨ Rel y x ⟩
+--    transRel : ∀{x y z} → ⟨ Rel x y ⟩ → ⟨ Rel y z ⟩ → ⟨ Rel x z ⟩
 open Setoid public
 
 Setoid₀ = Setoid ℓ-zero
+
+UnitS : Setoid₀
+UnitS = setoid Unit (λ _ _ → Unit)
+  (λ _ _ → isPropUnit)
+  (equivRel (λ _ → tt) (λ _ _ _ → tt) (λ _ _ _ _ _ → tt))
 
 record _→S_ {ℓ} (S₁ S₂ : Setoid ℓ) : Type ℓ where
   constructor _,_
   field
     mor : S₁ .Carr → S₂ .Carr
-    morRel : ∀{x y} → ⟨ S₁ .Rel x y ⟩ → ⟨ S₂ .Rel (mor x) (mor y) ⟩ 
+    morRel : ∀{x y} → S₁ .Rel x y → S₂ .Rel (mor x) (mor y)
 open _→S_ public
 
+bangS : {S : Setoid₀} → S →S UnitS
+bangS = (λ _ → tt) , (λ _ → tt)
+
 _≡S_ : ∀{ℓ} {S₁ S₂ : Setoid ℓ} (f g : S₁ →S S₂) → Type ℓ
-_≡S_ {S₂ = S₂} f g = ∀ x → ⟨ S₂ .Rel (f .mor x) (g .mor x) ⟩
+_≡S_ {S₂ = S₂} f g = ∀ x → S₂ .Rel (f .mor x) (g .mor x)
 
 infix 21 _∘S_
 _∘S_ : ∀{ℓ} {S₁ S₂ S₃ : Setoid ℓ}
@@ -89,7 +114,7 @@ _∘S_ : ∀{ℓ} {S₁ S₂ S₃ : Setoid ℓ}
 
 Set→Setoid : ∀{ℓ} → hSet ℓ → Setoid ℓ
 Set→Setoid (X , Xset) =
-  setoid X (λ x y → (x ≡ y) , Xset _ _) (λ _ → refl) sym _∙_
+  setoid X _≡_  Xset (equivRel (λ _ → refl) (λ _ _ → sym) λ _ _ _ → _∙_)
 
 isPropFunEq : ∀{ℓ}{A B : Type ℓ} (f g : A → B)
   → (∀ x → isProp (f x ≡ g x))
