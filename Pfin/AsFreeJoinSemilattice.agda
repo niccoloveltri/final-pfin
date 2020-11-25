@@ -1,6 +1,6 @@
 {-# OPTIONS --cubical --no-import-sorts #-}
 
-module PfinAsHIT where
+module Pfin.AsFreeJoinSemilattice where
 
 open import Cubical.Core.Everything
 open import Cubical.Foundations.Prelude

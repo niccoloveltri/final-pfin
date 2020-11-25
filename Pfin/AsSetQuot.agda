@@ -1,6 +1,6 @@
 {-# OPTIONS --cubical --no-import-sorts #-}
 
-module PfinAsQuot where
+module Pfin.AsSetQuot where
 
 open import Cubical.Core.Everything
 open import Cubical.Foundations.Prelude
@@ -18,7 +18,7 @@ open import Cubical.Data.Empty renaming (elim to ⊥-elim; rec to ⊥-rec)
 open import Cubical.Relation.Binary
 open import Preliminaries
 open import Trees
-open import PfinAsHIT
+open import Pfin.AsFreeJoinSemilattice
 
 -- the relation relating lists with the same elements
 SameEls : {A : Type} → List A → List A → Type
