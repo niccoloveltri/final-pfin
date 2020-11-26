@@ -15,6 +15,7 @@ open import Cubical.Data.Sigma
 open import Cubical.Data.List renaming (map to mapList)
 open import Cubical.Data.Empty renaming (elim to ⊥-elim; rec to ⊥-rec)
 open import Cubical.Relation.Binary
+open import Cubical.Relation.Nullary
 open BinaryRelation
 
 open import Preliminaries
@@ -153,6 +154,35 @@ isEquivRelRelator (equivRel reflR _ transR) =
   equivRel (reflRelator reflR)
            (λ _ _ r → r .snd , r .fst)
            λ _ _ _ → transRelator (transR _ _ _)
+
+decMem : ∀{ℓ}{X : Type ℓ} {R : X → X → Type ℓ} 
+  → (∀ x y → Dec (R x y)) → ∀ x ys
+  → Dec (Σ[ y ∈ _ ] (y ∈ ys) × R x y)
+decMem decR x [] = no (λ { () })
+decMem decR x (y ∷ ys) with decR x y
+... | yes p = yes (y , here , p)
+... | no ¬p with decMem decR x ys
+... | yes (z , m , r) = yes (z , there m , r)
+... | no ¬q = no (λ { (._ , here , r') → ¬p r'
+                    ; (w , there m' , r') → ¬q (w , m' , r') })
+
+decDRelator : ∀{ℓ}{X : Type ℓ} {R : X → X → Type ℓ} 
+  → (∀ x y → Dec (R x y)) → ∀ xs ys → Dec (DRelator R xs ys)
+decDRelator decR [] ys = yes (λ _ ())
+decDRelator decR (x ∷ xs) ys with decDRelator decR xs ys
+... | no ¬p = no (λ q → ¬p (λ y my → q y (there my)))
+... | yes p with decMem decR x ys
+... | yes q = yes (λ { ._ here → ∣ q ∣
+                     ; y (there m) → p y m })
+... | no ¬q = no (λ q → ∥rec∥ isProp⊥ ¬q (q  _ here))
+
+decRelator : ∀{ℓ}{X : Type ℓ} {R : X → X → Type ℓ}
+  → (∀ x y → Dec (R x y)) → ∀ xs ys → Dec (Relator R xs ys)
+decRelator decR xs ys with decDRelator decR xs ys
+... | no ¬p = no (λ x → ¬p (fst x))
+... | yes p with decDRelator decR ys xs
+... | yes q = yes (p , q)
+... | no ¬q = no (λ z → ¬q (snd z))
 
 -- coinductive closure of the relator, which gives a notion of extensional
 -- equality of trees
