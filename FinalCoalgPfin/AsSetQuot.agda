@@ -16,6 +16,7 @@ open import Cubical.Data.List renaming (map to mapList) hiding ([_])
 open import Cubical.Data.Empty renaming (elim to ⊥-elim; rec to ⊥-rec)
 open import Cubical.Relation.Binary
 open import Preliminaries
+open import ListRelations
 open import Trees
 open import Pfin.AsSetQuot
 open import FinalCoalgPfin.AsSetoid

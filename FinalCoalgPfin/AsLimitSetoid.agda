@@ -24,6 +24,7 @@ open BinaryRelation
 open isEquivRel
 open import Preliminaries
 open import Trees
+open import ListRelations
 open import FinalCoalgPfin.AsSetoid
 open import Pfin.AsSetQuot
 

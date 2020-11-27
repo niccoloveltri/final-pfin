@@ -17,6 +17,7 @@ open import Cubical.Data.Sum renaming (map to map⊎; inl to inj₁; inr to inj�
 open import Cubical.Data.Empty renaming (elim to ⊥-elim; rec to ⊥-rec)
 open import Cubical.Relation.Binary
 open import Preliminaries
+open import ListRelations
 open import Trees
 open import Pfin.AsFreeJoinSemilattice
 

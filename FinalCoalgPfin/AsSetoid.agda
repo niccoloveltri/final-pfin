@@ -17,7 +17,9 @@ open import Cubical.Data.Empty renaming (elim to ⊥-elim; rec to ⊥-rec)
 open import Cubical.Relation.Binary hiding (Rel)
 open BinaryRelation
 open isEquivRel
+
 open import Preliminaries
+open import ListRelations
 open import Trees
 
 
