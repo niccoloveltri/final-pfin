@@ -190,6 +190,20 @@ PfinRelₚ : ∀{X} (R : X → X → hProp₀)
 PfinRelₚ R s t =
   PfinRel (λ x y → ⟨ R x y ⟩) s t , isPropPfinRel _ s t
 
+PfinRel∪ : ∀{X} (R : X → X → Type₀)
+  → (s s' t t' : Pfin X)
+  → PfinRel R s t → PfinRel R s' t'
+  → PfinRel R (s ∪ s') (t ∪ t')
+PfinRel∪ R s s' t t' (p , p') (q , q') =
+  (λ x →
+    ∥rec∥ propTruncIsProp
+      λ { (inj₁ m) → ∥map∥ (λ { (y , my , r) → y , inl my , r}) (p _ m)
+        ; (inj₂ m) → ∥map∥ (λ { (y , my , r) → y , inr my , r}) (q _ m) }) ,
+  (λ x →
+    ∥rec∥ propTruncIsProp
+      λ { (inj₁ m) → ∥map∥ (λ { (y , my , r) → y , inl my , r}) (p' _ m)
+        ; (inj₂ m) → ∥map∥ (λ { (y , my , r) → y , inr my , r}) (q' _ m) }) 
+
 -- extensional equality of finite subsets: they are equal if they
 -- contain the same elements
 PfinEq : ∀{X} → Pfin X → Pfin X → Type₀

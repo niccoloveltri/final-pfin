@@ -81,9 +81,11 @@ anaTreeUniqB' : {X : Type} (c : X → List X)
   → (f : X → Tree ∞) (eq : ∀ x → force (f x) ≡ mapList f (c x))
   → (j : Size)
   → ∀ xs → ListRel (Bisim j) (mapList f xs) (mapList (anaTree c ∞) xs)
-forceEq (anaTreeUniqB c f eq j x) {k}=
+
+forceEq (anaTreeUniqB c f eq j x) {k} =
   subst (λ z → ListRel (Bisim k) z _) (sym (eq x))
          (anaTreeUniqB' c f eq _ (c x))
+
 anaTreeUniqB' c f eq j [] = []
 anaTreeUniqB' c f eq j (x ∷ xs) =
   anaTreeUniqB c f eq j x ∷ anaTreeUniqB' c f eq j xs
