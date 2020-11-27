@@ -1,6 +1,6 @@
 {-# OPTIONS --cubical --no-import-sorts #-}
 
-module FinalCoalgPfin.AsLimitSetoid where
+module FinalCoalgPfin.Setoid.AsLimit where
 
 open import Size
 open import Cubical.Core.Everything
@@ -25,7 +25,7 @@ open isEquivRel
 open import Preliminaries
 open import Trees
 open import ListRelations
-open import FinalCoalgPfin.AsSetoid
+open import FinalCoalgPfin.Setoid.AsCoindType
 open import Pfin.AsSetQuot
 
 -- ω-chains of setoids

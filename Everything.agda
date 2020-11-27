@@ -10,6 +10,7 @@ import Trees
 import Pfin.AsFreeJoinSemilattice
 import Pfin.AsSetQuot
 
-import FinalCoalgPfin.AsSetoid
-import FinalCoalgPfin.AsSetQuot
-import FinalCoalgPfin.AsLimitSetoid
+import FinalCoalgPfin.Setoid.AsCoindType
+import FinalCoalgPfin.Setoid.AsLimit
+
+import FinalCoalgPfin.Set.AsSetQuot

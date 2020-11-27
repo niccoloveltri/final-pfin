@@ -1,6 +1,6 @@
 {-# OPTIONS --cubical --no-import-sorts #-}
 
-module FinalCoalgPfin.AsSetQuot where
+module FinalCoalgPfin.Set.AsSetQuot where
 
 open import Size
 open import Cubical.Core.Everything
@@ -19,7 +19,7 @@ open import Preliminaries
 open import ListRelations
 open import Trees
 open import Pfin.AsSetQuot
-open import FinalCoalgPfin.AsSetoid
+open import FinalCoalgPfin.Setoid.AsCoindType
 open BinaryRelation
 
 -- the final coalgebra of PfinQ as quotient of trees

@@ -1,6 +1,6 @@
 {-# OPTIONS --cubical --no-import-sorts #-}
 
-module FinalCoalgPfin.AsSetoid where
+module FinalCoalgPfin.Setoid.AsCoindType where
 
 open import Size
 open import Cubical.Core.Everything
