@@ -78,7 +78,7 @@ anaPfinQ' =
 -- the construction of the anamorphism;
 -- for this to work, we assume that θ has a section, i.e. it is a
 -- split epimorphism; this is equivalent to full axiom of choice (the
--- equivalence is proved in the end of the file)
+-- equivalence is proved in the end of the file Preliminaries.agda)
 
 module _ (θInv : ∀ A {B} (R : B → B → Type) → (A → B / R) → [ A ⇒ B ]/ R)
          (sectionθ : ∀ A {B} (R : B → B → Type) → section (θ A R) (θInv A R)) where

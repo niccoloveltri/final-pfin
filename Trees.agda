@@ -184,6 +184,19 @@ decRelator decR xs ys with decDRelator decR xs ys
 ... | yes q = yes (p , q)
 ... | no ¬q = no (λ z → ¬q (snd z))
 
+DRelatorFunMapList : {X Y : Type}(f g : X → Y)
+  → {R : Y → Y → Type} → (∀ x → R (f x) (g x))
+  → ∀ xs → DRelator R (mapList f xs) (mapList g xs)
+DRelatorFunMapList f g {R = R} r xs x mx with pre∈mapList mx
+... | (y , my , eq) = ∣ g y , ∈mapList my , subst (λ z → R z (g y)) eq (r y) ∣ 
+
+RelatorFunMapList : {X Y : Type}(f g : X → Y)
+  → {R : Y → Y → Type} → (∀ x → R (f x) (g x))
+  → (∀ {x x'} → R x x' → R x' x)
+  → ∀ xs → Relator R (mapList f xs) (mapList g xs)
+RelatorFunMapList f g r Rsym xs =
+  DRelatorFunMapList f g r xs , DRelatorFunMapList g f (λ x → Rsym (r x)) xs
+
 -- coinductive closure of the relator, which gives a notion of extensional
 -- equality of trees
 record ExtEq (i : Size) (t₁ t₂ : Tree ∞) : Type where

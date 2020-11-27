@@ -7,9 +7,10 @@ open import Cubical.Foundations.Everything
 open import Cubical.Data.List renaming (map to mapList; [_] to sing)
 open import Cubical.Data.Sigma
 open import Cubical.Data.Unit
+open import Cubical.Data.Empty renaming (elim to ⊥-elim)
 open import Cubical.Data.Nat
 open import Cubical.Data.Sum renaming (inl to inj₁; inr to inj₂; map to map⊎)
-open import Cubical.Functions.Logic 
+open import Cubical.Functions.Logic hiding (⊥)
 open import Cubical.HITs.SetQuotients renaming (rec to recQ)
 open import Cubical.HITs.PropositionalTruncation as PropTrunc
   renaming (map to ∥map∥; rec to ∥rec∥)
@@ -59,6 +60,31 @@ mapList++ : ∀{ℓ}{A B : Type ℓ}{f : A → B}(xs ys : List A)
   → mapList f (xs ++ ys) ≡ mapList f xs ++ mapList f ys
 mapList++ [] ys = refl
 mapList++ (x ∷ xs) ys = cong (_ ∷_) (mapList++ xs ys)
+
+remove : ∀{ℓ}{A : Type ℓ} {x : A} xs → x ∈ xs → List A
+remove (x ∷ xs) here = xs
+remove (y ∷ xs) (there m) = y ∷ remove xs m
+
+remove∈ : ∀{ℓ}{A : Type ℓ} {x y : A} {xs} (m : x ∈ xs)
+  → y ∈ remove xs m → y ∈ xs
+remove∈ here m' = there m'
+remove∈ (there m) here = here
+remove∈ (there m) (there m') = there (remove∈ m m')
+
+lengthRemove : ∀{ℓ}{A : Type ℓ} {x : A} {xs} (m : x ∈ xs)
+  → length xs ≡ suc (length (remove xs m))
+lengthRemove here = refl
+lengthRemove (there m) = cong suc (lengthRemove m)
+
+∈removeRel : ∀{ℓ}{A : Type ℓ}
+  → {R : A → A → Type ℓ} → (∀ x → R x x)
+  → {xs : List A} {x w : A} (m : x ∈ xs) 
+  → w ∈ xs → (R w x → ⊥)
+  → w ∈ remove xs m
+∈removeRel reflR here here ¬r = ⊥-elim (¬r (reflR _))
+∈removeRel reflR here (there mw) ¬r = mw
+∈removeRel reflR (there mx) here ¬r = here
+∈removeRel reflR (there mx) (there mw) ¬r = there (∈removeRel reflR mx mw ¬r)
 
 -- properties of membership in the image of a list
 ∈mapList : {A B : Type} {f : A → B} {a : A} {xs : List A}
@@ -121,6 +147,11 @@ isPropFunEq : ∀{ℓ}{A B : Type ℓ} (f g : A → B)
   → isProp (f ≡ g)
 isPropFunEq f g p eq1 eq2 i j x =
   p x (λ k → eq1 k x) (λ k → eq2 k x) i j 
+
+
+isSurjectionS : ∀{ℓ}{S T : Setoid ℓ} → S →S T → Type ℓ
+isSurjectionS {T = T} (f , _) = ∀ y → ∃[ x ∈ _ ] T .Rel (f x) y
+
 
 -- pointwise lifting of a relation to a function space
 PW : {X A B : Type} (R : A → B → Type) → (X → A) → (X → B) → Type
