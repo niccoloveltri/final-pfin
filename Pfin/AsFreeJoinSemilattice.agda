@@ -93,6 +93,7 @@ mapPfin f (nr p i) = nr (mapPfin f p) i
 mapPfin f (trunc p q x y i j) =
   trunc _ _ (cong (mapPfin f) x) (cong (mapPfin f) y) i j
 
+
 -- elimination principle into a mere proposition
 module _ {A : Type₀}
          (P : Pfin A → hProp ℓ-zero) (pø : ⟨ P ø ⟩) (pη : ∀ a → ⟨ P (η a) ⟩)
@@ -129,6 +130,14 @@ module _ {A : Type₀}
       (trunc s s' p q)
       i j
 
+mapPfinComp : ∀ {A B C} {g : B → C} {f : A → B} (s : Pfin A)
+  → mapPfin g (mapPfin f s) ≡ mapPfin (g ∘ f) s
+mapPfinComp =
+  elimPfinProp (λ _ → _ , trunc _ _)
+    refl
+    (λ _ → refl)
+    λ eq1 eq2 → cong₂ _∪_ eq1 eq2
+
 -- an algebraic order, given by the presence of joins
 _≤_ : ∀{A} → Pfin A → Pfin A → Type₀
 s ≤ t = (s ∪ t) ≡ t
@@ -150,6 +159,10 @@ isProp≤ = trunc _ _
 -- subset relation
 _⊆_ : ∀{A} → Pfin A → Pfin A → Type₀
 s ⊆ t = ∀ x → ⟨ x ∈ₛ s ⟩ → ⟨ x ∈ₛ t ⟩
+
+trans⊆ : ∀{A} {xs ys zs : Pfin A}
+  → xs ⊆ ys → ys ⊆ zs → xs ⊆ zs
+trans⊆ p q x m = q x (p x m)  
 
 -- ⊆ implies ≤ 
 ⊂2≤-η : ∀{A}(a : A) (s : Pfin A) → ⟨ a ∈ₛ s ⟩ → η a ≤ s
@@ -244,6 +257,99 @@ pre∈ₛmapPfin f b =
       (λ { (inj₁ m) → ∥map∥ (λ {(a , m , eq) → a , inl m , eq}) (p₁ m)
          ; (inj₂ m) → ∥map∥ (λ {(a , m , eq) → a , inr m , eq}) (p₂ m) })
 
+∪⊆ : ∀{A} (s1 s2 t : Pfin A) →  s1 ⊆ t → s2 ⊆ t → (s1 ∪ s2) ⊆ t
+∪⊆ s1 s2 t p q x =
+  ∥rec∥ (snd (x ∈ₛ t)) λ { (inj₁ m) → p x m ; (inj₂ m) → q x m } 
+
+∪⊆1 : ∀{A} (s1 s2 t : Pfin A) →  (s1 ∪ s2) ⊆ t → s1 ⊆ t
+∪⊆1 s1 s2 t p x m = p x (inl m)
+
+∪⊆2 : ∀{A} (s1 s2 t : Pfin A) →  (s1 ∪ s2) ⊆ t → s2 ⊆ t
+∪⊆2 s1 s2 t p x m = p x (inr m)
+
+
+map∪⊆ : ∀{A} (s1 s2 t1 t2 : Pfin A) →  s1 ⊆ t1 → s2 ⊆ t2 → (s1 ∪ s2) ⊆ (t1 ∪ t2)
+map∪⊆ s1 s2 t1 t2 p q x =
+  ∥map∥ λ { (inj₁ m) → inj₁ (p x m) ; (inj₂ m) → inj₂ (q x m) }
+
+⊆∪ : ∀{A} (s1 s2 t : Pfin A)
+  → t ⊆ (s1 ∪ s2) → ∃[ t1 ∈ Pfin A ] Σ[ t2 ∈ Pfin A ] (t1 ⊆ s1) × (t2 ⊆ s2) × (t ≡ t1 ∪ t2)
+⊆∪ s1 s2 =
+  elimPfinProp (λ _ → _ , isPropΠ (λ _ → propTruncIsProp))
+    (λ x → ∣ ø , ø , (λ { _ () }) , (λ { _ () }) , sym (idem _) ∣)
+    (λ a m →
+      ∥map∥
+        (λ { (inj₁ p) → η a , ø ,
+                         (λ x → ∥rec∥ (snd (x ∈ₛ s1)) λ eq → subst (λ z → ⟨ z ∈ₛ s1 ⟩) (sym eq) p) ,
+                         (λ { _ () }) ,
+                         sym (nr _) ;
+             (inj₂ p) → ø , η a ,
+                        (λ { _ () }) ,
+                        (λ x → ∥rec∥ (snd (x ∈ₛ s2)) λ eq → subst (λ z → ⟨ z ∈ₛ s2 ⟩) (sym eq) p) ,
+                        sym (com _ _ ∙ nr _) })
+        (m a ∣ refl ∣))
+    λ ih1 ih2 p →
+      ∥rec∥ propTruncIsProp
+        (λ { (u1 , u2 , m1 , m2 , eq1) →
+          ∥map∥
+            (λ { (v1 , v2 , n1 , n2 , eq2) →
+               (u1 ∪ v1) , (u2 ∪ v2) ,
+               ∪⊆ u1 v1 s1 m1 n1 ,
+               ∪⊆ u2 v2 s2 m2 n2 ,
+               cong₂ _∪_ eq1 eq2
+               ∙ ass _ _ _
+               ∙ cong (_∪ v2) (sym (ass _ _ _)
+                               ∙ cong (u1 ∪_) (com _ _)
+                               ∙ ass _ _ _)
+               ∙ sym (ass _ _ _) })
+            (ih2 (λ x m → p x (inr m))) })
+        (ih1 λ x m → p x (inl m))
+
+
+pre⊆mapPfin : ∀{A B} (f : A → B) (s : Pfin A) (t : Pfin B)
+  → t ⊆ mapPfin f s → ∃[ s' ∈ Pfin A ] (s' ⊆ s) × (mapPfin f s' ≡ t)
+pre⊆mapPfin f s =
+  elimPfinProp (λ x → _ , isPropΠ (λ _ → propTruncIsProp))
+    (λ x → ∣ ø , (λ { _ () }) , refl ∣)
+    (λ b p →
+      ∥map∥
+        (λ { (a , m , eq) →
+            η a ,
+            (λ x → ∥rec∥ (snd (x ∈ₛ s)) λ r → subst (λ y → ⟨ y ∈ₛ s ⟩) (sym r) m) ,
+            cong η eq})
+        (pre∈ₛmapPfin f b s (p b ∣ refl ∣)))
+    λ {t1} {t2} ih1 ih2 p →
+      ∥rec∥ propTruncIsProp
+        (λ { (u1 , m1 , eq1) →
+          ∥map∥
+            (λ { (u2 , m2 , eq2) → (u1 ∪ u2) , ∪⊆ u1 u2 s m1 m2 , cong₂ _∪_ eq1 eq2 })
+            (ih2 (∪⊆2 t1 t2 (mapPfin f s) p)) })
+        (ih1 (∪⊆1 t1 t2 (mapPfin f s) p))
+
+
+{-
+pre⊆mapPfin : ∀{A B} (f : A → B) (s : Pfin A) (t : Pfin B)
+  → t ⊆ mapPfin f s → ∃[ s' ∈ Pfin A ] (s' ⊆ s) × (mapPfin f s' ≡ t)
+pre⊆mapPfin f =
+  elimPfinProp (λ x → _ , isPropΠ (λ _ → isPropΠ (λ _ → propTruncIsProp)))
+    (λ _ p → ∣ ø , (λ _ z → z) , PfinEq→Eq ((λ { _ () }) , λ b m → ⊥-elim (p b m)) ∣)
+    (λ a t p → ∣ η a , (λ x m → m) , {!!} ∣)
+    λ {s1} {s2} ih1 ih2 t p →
+      ∥rec∥ propTruncIsProp
+        (λ { (t1 , t2 , m1 , m2 , eq) →
+          ∥rec∥ propTruncIsProp
+            (λ { (u1 , n1 , eq1) →
+              ∥map∥
+                (λ { (u2 , n2 , eq2) →
+                   (u1 ∪ u2) ,
+                   map∪⊆ u1 u2 s1 s2 n1 n2 ,
+                   cong₂ _∪_ eq1 eq2 ∙ sym eq })
+                (ih2 t2 m2) })
+            (ih1 t1 m1) })
+        (⊆∪ (mapPfin f s1) (mapPfin f s2) t p)
+-}  
+
+
 -- turning a list into a finite subset
 List→Pfin : ∀{A} → List A → Pfin A
 List→Pfin [] = ø
@@ -265,4 +371,336 @@ List→Pfin∈ (x ∷ xs) (there p) = inr (List→Pfin∈ xs p)
 
 
 
+antisym⊆ : ∀{A}{s t : Pfin A} → s ⊆ t → t ⊆ s → s ≡ t
+antisym⊆ p q = antisym≤ (⊂2≤ _ _ p) (⊂2≤ _ _ q)
 
+_≡ₛ_ : ∀{A} → Pfin A → Pfin A → Type
+s ≡ₛ t = (s ⊆ t) × (t ⊆ s)
+
+_×p_ : {A B C : Type} → (A → C) → (B → C) → Type
+_×p_ {A}{B} f g = Σ[ a ∈ A ] Σ[ b ∈ B ] f a ≡ g b
+
+Eq×p : {A B C : Type} → isSet C
+  → (f : A → C)(g : B → C)
+  → {a a' : A} → a ≡ a' 
+  → {b b' : B} → b ≡ b'
+  → (eq : f a ≡ g b) (eq' : f a' ≡ g b')
+  → _≡_ {A = f ×p g} (a , b , eq) (a' , b' , eq')
+Eq×p setC f g =
+  J (λ y _ → ∀ {b b'} → b ≡ b'
+     → (eq : f _ ≡ g b) (eq' : f y ≡ g b')
+     → _≡_ {A = f ×p g} (_ , b , eq) (y , b' , eq'))
+  (J (λ y _ → (eq : f _ ≡ g _) (eq' : f _ ≡ g y)
+        → _≡_ {A = f ×p g} (_ , _ , eq) (_ , y , eq'))
+     λ p q → cong (λ x → _ , _ , x) (setC _ _ p q))
+
+{-
+≡Pfin×p' : {A B C : Type} → isSet C
+  → (f : A → C) → (∀ x y → f x ≡ f y → x ≡ y)
+  → (g : B → C) → (∀ x y → g x ≡ g y → x ≡ y)
+  → (s t : Pfin (f ×p g))
+  → mapPfin fst s ⊆ mapPfin fst t
+  → mapPfin (fst ∘ snd) s ⊆ mapPfin (fst ∘ snd) t
+  → s ⊆ t
+≡Pfin×p' setC f injf g injg s t p q x@(a , b , eq) m =
+  {!p a (∈ₛmapPfin fst x s m)!}
+
+≡Pfin×p : {A B C : Type} → isSet C
+  → (f : A → C) → (∀ x y → f x ≡ f y → x ≡ y)
+  → (g : B → C) → (∀ x y → g x ≡ g y → x ≡ y)
+  → (s t : Pfin (f ×p g))
+  → mapPfin fst s ≡ mapPfin fst t
+  → mapPfin (fst ∘ snd) s ≡ mapPfin (fst ∘ snd) t
+  → s ≡ t
+≡Pfin×p = {!!}
+-}
+
+
+∈Pfin×p : {A B C : Type} → isSet C 
+  → (f : A → C) (g : B → C) → (∀ x y → g x ≡ g y → x ≡ y)
+  → {a : A} {b : B} (eq : f a ≡ g b) (s : Pfin (f ×p g))
+  → ⟨ a ∈ₛ mapPfin fst s ⟩
+  → ⟨ (a , b , eq) ∈ₛ s ⟩
+∈Pfin×p setC f g injg eq s ma =
+  ∥rec∥ (snd ((_ , _ , eq) ∈ₛ s))
+    (λ { ((a' , b' , eq') , m , r) →
+      J (λ y _ → (eq : f y ≡ g _) → ⟨ (y , _ , eq) ∈ₛ s ⟩ )
+        (λ eq →
+          J (λ y _ → (eq : f _ ≡ g y) → ⟨ (a' , y , eq) ∈ₛ s ⟩ )
+            (λ eq → subst (λ z → ⟨ (a' , b' , z) ∈ₛ s ⟩) (setC _ _ _ _) m)
+            (injg b' _ (sym eq' ∙ eq)) eq)
+        r eq })
+    (pre∈ₛmapPfin fst _ s ma)
+
+
+EqFiber : {A B : Type} → isSet B
+  → (f : A → B) (b : B)
+  → {a a' : A} → a ≡ a'
+  → (eq : f a ≡ b) (eq' : f a' ≡ b)
+  → _≡_ {A = fiber f b} (a , eq) (a' , eq')
+EqFiber setB f b =
+  J (λ a _ → (eq : f _ ≡ b) (eq' : f a ≡ b)
+       → _≡_ {A = fiber f b} (_ , eq) (a , eq'))
+    λ p q → cong (_ ,_) (setB _ _ p q)
+
+mapPfinInj' : ∀{A B} (g : A → B) → (∀ x y → g x ≡ g y → x ≡ y)
+  → (s t : Pfin A) → mapPfin g s ⊆ mapPfin g t → s ⊆ t
+mapPfinInj' g injg s t p x m =
+  ∥rec∥ (snd (x ∈ₛ t))
+    (λ { (x' , m' , eq) → subst (λ z → ⟨ z ∈ₛ t ⟩) (injg _ _ eq) m' })
+    (pre∈ₛmapPfin g _ t (p (g x) (∈ₛmapPfin g x s m)))
+
+mapPfinInj : ∀{A B} (g : A → B) → (∀ x y → g x ≡ g y → x ≡ y)
+  → (s t : Pfin A) → mapPfin g s ≡ mapPfin g t → s ≡ t
+mapPfinInj g injg s t p =
+  antisym⊆
+    (mapPfinInj' g injg s t (subst (mapPfin g s ⊆_) p (λ _ m → m)))
+    (mapPfinInj' g injg t s (subst (_⊆ mapPfin g s) p (λ _ m → m)))
+
+
+mapPfinø' : ∀{A B} (f : A → B) (s : Pfin A)
+  → mapPfin f s ⊆ ø → s ⊆ ø
+mapPfinø' f s p x m = p (f x) (∈ₛmapPfin f x s m)
+
+mapPfinø : ∀{A B} (f : A → B) (s : Pfin A)
+  → mapPfin f s ≡ ø → s ≡ ø
+mapPfinø f s eq =
+  antisym⊆
+    (mapPfinø' f s (subst (mapPfin f s ⊆_) eq (λ _ m → m)))
+    λ { _ ()}   
+
+mapPfinη : ∀{A B} (f : A → B) (s : Pfin A) (b : B)
+  → mapPfin f s ≡ η b → Σ[ a ∈ A ] s ≡ η a
+mapPfinη f =
+  elimPfinProp (λ x → _ , isPropΠ (λ b → isPropΠ (λ { eq (a1 , r1) (a2 , r2) → {!sym r1 ∙ r2!} })))
+    (λ b eq → {!imp!})
+    (λ a b eq → a , refl)
+    λ ih1 ih2 b eq → {!ih1 b !}  
+
+∪≡mapPfin : ∀{A B} (f : A → B) → (∀ x y → f x ≡ f y → x ≡ y)
+  → (s : Pfin A) (t1 t2 : Pfin B)
+  → (t1 ∪ t2) ≡ mapPfin f s
+  → ∃[ s1 ∈ Pfin A ] Σ[ s2 ∈ Pfin A ] (s1 ∪ s2 ≡ s) × (t1 ≡ mapPfin f s1) × (t2 ≡ mapPfin f s2)
+∪≡mapPfin f injf s t1 t2 eq =
+  ∥rec∥ propTruncIsProp
+    (λ { (u1 , m1 , eq1) → ∥map∥
+      (λ { (u2 , m2 , eq2) → u1 , u2 , mapPfinInj f injf _ _ (cong₂ _∪_ eq1 eq2 ∙ eq) , sym eq1 , sym eq2 })
+      (pre⊆mapPfin f s t2 (subst (t2 ⊆_) eq (λ _ → inr))) })
+    (pre⊆mapPfin f s t1 (subst (t1 ⊆_) eq (λ _ → inl)))
+
+to×p : ∀{A B C} (f : A → C) (g : B → C)
+  → Pfin (f ×p g) → mapPfin f ×p mapPfin g
+to×p f g s = mapPfin fst s , mapPfin (fst ∘ snd) s ,
+  mapPfinComp s
+  ∙ cong (λ z → mapPfin z s) (λ i p → snd (snd p) i)
+  ∙ sym (mapPfinComp s)
+
+to×pEquiv : ∀{A B C} (setC : isSet C) (f : A → C) (g : B → C)
+  → ((∀ x y → g x ≡ g y → x ≡ y))
+  → (as : Pfin A) (bs : Pfin B) (p : mapPfin f as ≡ mapPfin g bs)
+  → isContr (fiber (to×p f g) (as , bs , p))
+to×pEquiv setC f g injg =
+  elimPfinProp (λ _ → _ , isPropΠ (λ _ → isPropΠ (λ _ → isPropIsContr)))
+    (λ t eq →
+      (ø ,
+       Eq×p trunc _ _ refl (sym (mapPfinø g _ (sym eq))) _ eq) ,
+       λ { (cs , eq') →
+         EqFiber
+          (isSetΣ trunc (λ _ → isSetΣ trunc (λ _ → isProp→isSet (trunc _ _)))) _ _
+          (sym (mapPfinø fst cs (cong fst eq'))) _ _ }) 
+    (λ a t eq →
+      let (b , eq') = mapPfinη g t (f a) (sym eq) in
+        ((η (a , b , {!!})) ,
+         {!!}) ,
+         {!!} ) 
+    λ {s1} {s2} ih1 ih2 t eq →
+      ∥rec∥ isPropIsContr
+        (λ { (u1 , u2 , eqt , eq1 , eq2) → 
+          let ((v1 , q1) , r1) = ih1 u1 eq1 in
+          let ((v2 , q2) , r2) = ih2 u2 eq2 in
+            ((v1 ∪ v2) ,
+             Eq×p trunc _ _
+                  (cong₂ _∪_ (cong fst q1) (cong fst q2))
+                  (cong₂ _∪_ (cong (fst ∘ snd) q1) (cong (fst ∘ snd) q2)
+                   ∙ mapPfinInj g injg _ _ (cong₂ _∪_ (sym eq1) (sym eq2) ∙ eq))
+                  _ _) ,
+             λ { (w , eqw) →
+               EqFiber (isSetΣ trunc (λ _ → isSetΣ trunc (λ _ → isProp→isSet (trunc _ _)))) _ _
+                       (cong₂ _∪_ (cong fst (r1 (v1 , q1)))
+                                  (cong fst (r2 (v2 , q2)))
+                       ∙ antisym⊆
+                           (λ x@(a , b , fa≡gb) → ∥rec∥ (snd (x ∈ₛ w))
+                             (λ { (inj₁ mx) →
+                                   ∈Pfin×p setC f g injg fa≡gb w
+                                           (subst (λ z → ⟨ a ∈ₛ z ⟩)
+                                                (cong fst (sym eqw))
+                                                (inl (subst (λ z → ⟨ a ∈ₛ z ⟩)
+                                                            (cong fst q1)
+                                                            (∈ₛmapPfin fst x v1 mx))))
+                                ; (inj₂ mx) →
+                                    ∈Pfin×p setC f g injg fa≡gb w
+                                            (subst (λ z → ⟨ a ∈ₛ z ⟩)
+                                                (cong fst (sym eqw))
+                                                (inr (subst (λ z → ⟨ a ∈ₛ z ⟩)
+                                                            (cong fst q2)
+                                                            (∈ₛmapPfin fst x v2 mx)))) }))
+                           (λ { x@(a , b , fa≡gb) mx → ∥rec∥ propTruncIsProp
+                              (λ { (inj₁ ma) →
+                                         inl (∈Pfin×p setC f g injg fa≡gb v1
+                                                      (subst (λ z → ⟨ a ∈ₛ z ⟩) (cong fst (sym q1)) ma))
+                                 ; (inj₂ ma) →
+                                         inr (∈Pfin×p setC f g injg fa≡gb v2
+                                                      (subst (λ z → ⟨ a ∈ₛ z ⟩) (cong fst (sym q2)) ma))}) 
+                              (subst (λ z → ⟨ a ∈ₛ z ⟩) (cong fst eqw) (∈ₛmapPfin fst x w mx)) }))
+                       _ _ } })
+        (∪≡mapPfin g injg t _ _ eq)
+
+
+{-
+      ∥rec∥ isPropIsContr
+        (λ { (u1 , m1 , eq1) →
+          ∥rec∥ isPropIsContr
+            (λ { (u2 , m2 , eq2) →
+               let ((v1 , q1) , r1) = ih1 u1 (sym eq1) in
+               let ((v2 , q2) , r2) = ih2 u2 (sym eq2) in
+                 ((v1 ∪ v2) ,
+                  Eq×p trunc _ _
+                    (cong₂ _∪_ (cong fst q1) (cong fst q2))
+                    (cong₂ _∪_ (cong (fst ∘ snd) q1) (cong (fst ∘ snd) q2)
+                     ∙ mapPfinInj g injg _ _ (cong₂ _∪_ eq1 eq2 ∙ eq))
+                    _ _) ,
+                  λ { (w , eqw) →
+                    EqFiber
+                      (isSetΣ trunc (λ _ → isSetΣ trunc (λ _ → isProp→isSet (trunc _ _)))) _ _
+                      (cong₂ _∪_ (cong fst (r1 (v1 , q1)))
+                                 (cong fst (r2 (v2 , q2)))
+                       ∙ antisym⊆
+                           (λ x@(a , b , fa≡gb) → ∥rec∥ (snd (x ∈ₛ w))
+                             (λ { (inj₁ mx)
+                               → ∈Pfin×p setC f g injg fa≡gb w
+                                         (subst (λ z → ⟨ a ∈ₛ z ⟩)
+                                                (cong fst (sym eqw))
+                                                (inl (subst (λ z → ⟨ a ∈ₛ z ⟩)
+                                                            (cong fst q1)
+                                                            (∈ₛmapPfin fst x v1 mx))))
+                                         (subst (λ z → ⟨ b ∈ₛ z ⟩)
+                                                (cong (fst ∘ snd) (sym eqw))
+                                                (m1 _ (subst (λ z → ⟨ b ∈ₛ z ⟩)
+                                                             (cong (fst ∘ snd) q1)
+                                                             (∈ₛmapPfin (fst ∘ snd) x v1 mx))))
+                                ; (inj₂ mx) →
+                                  ∈Pfin×p setC f g injg fa≡gb w
+                                          (subst (λ z → ⟨ a ∈ₛ z ⟩)
+                                                (cong fst (sym eqw))
+                                                (inr (subst (λ z → ⟨ a ∈ₛ z ⟩)
+                                                            (cong fst q2)
+                                                            (∈ₛmapPfin fst x v2 mx))))
+                                          (subst (λ z → ⟨ b ∈ₛ z ⟩)
+                                                (cong (fst ∘ snd) (sym eqw))
+                                                (m2 _ (subst (λ z → ⟨ b ∈ₛ z ⟩)
+                                                             (cong (fst ∘ snd) q2)
+                                                             (∈ₛmapPfin (fst ∘ snd) x v2 mx)))) }))
+                           λ x@(a , b , fa≡gb) mx → ∥map∥
+                             (λ { (inj₁ my) → inj₁
+                                    (∈Pfin×p setC f g injg fa≡gb v1
+                                             (subst (λ z → ⟨ a ∈ₛ z ⟩) (cong fst (sym q1)) my)
+                                             {!subst (λ z → ⟨ b ∈ₛ z ⟩) (cong (fst ∘ snd) eqw) (∈ₛmapPfin (fst ∘ snd) x w mx)!})
+--(subst (λ z → ⟨ b ∈ₛ z ⟩) (cong (fst ∘ snd) (sym q1)) {!cong (fst ∘ snd) eqw!})                                             
+                                ; (inj₂ my) → {!!} })
+                             (subst (λ z → ⟨ a ∈ₛ z ⟩) (cong fst eqw) (∈ₛmapPfin fst x w mx)))
+                      _ _ } })
+            (pre⊆mapPfin g t (mapPfin f s2) (subst (mapPfin f s2 ⊆_) eq (λ _ → inr)))  })
+        (pre⊆mapPfin g t (mapPfin f s1) (subst (mapPfin f s1 ⊆_) eq (λ _ → inl)))
+-}
+
+
+{-
+m1 : u1 ⊆ t
+m2 : u2 ⊆ t
+cong (fst ∘ snd) q1 : mapPfin (fst ∘ snd) v1 ≡ u1
+cong (fst ∘ snd) q2 : mapPfin (fst ∘ snd) v2 ≡ u2
+
+eq : mapPfin f s1 ∪ mapPfinf s2 ≡ mapPfin g t
+eq1 : mapPfin g u1 ≡ mapPfin f s1
+eq2 : mapPfin g u2 ≡ mapPfin f s2
+--------------------------------------------------
+ mapPfin g (u1 ∪ u2) ≡ mapPfin g t
+
+Prove v1 ∪ v2 ≡ w
+Let (a , b , fa≡gb) ∈ v1.
+
+Using cong fst q1, we get a ∈ s1
+And from cong fst eqw, we get a ∈ mapPfin fst w
+
+Similarly, via cong (fst ∘ snd) q1, we get b ∈ u1
+Then from m1, we get b ∈ t
+and in turn, from cong (fst ∘ snd) eqw, we get b ∈ mapPfin (fst ∘ snd) w
+
+This should enough to show (a , b , fa≡gb) ∈ w
+
+The case for (a , b , fa≡gb) ∈ v2 is analogous.
+
+Vice versa, let (a , b , fa≡gb) ∈ w. 
+
+-}
+
+
+{-
+from×p : ∀{A B C} {f : A → C} {g : B → C}
+  → (as : Pfin A) (bs : Pfin B) → mapPfin f as ≡ mapPfin g bs
+  → {!!}
+from×p {f = f}{g} as bs p = {!!}
+-}
+{-
+from×p : ∀{A B C} {f : A → C} {g : B → C}
+  → mapPfin f ×p mapPfin g → Pfin (f ×p g)
+from×p {f = f}{g} (as , bs , p) = lem as p
+  where
+    lem : ∀ xs → mapPfin f xs ≡ mapPfin g bs → Pfin (f ×p g)
+    lem ø _ = ø
+    lem (η a) p = {!!}
+    lem (xs1 ∪ xs2) p = {!pre⊆mapPfin g bs (mapPfin f xs1) ?!}
+    lem (com xs xs₁ i) = {!!}
+    lem (ass xs xs₁ xs₂ i) = {!!}
+    lem (idem xs i) = {!!}
+    lem (nr xs i) = {!!}
+    lem (trunc xs xs₁ x y i i₁) = {!!}
+-}
+
+
+-- A simple counterexample showing that Pfin does not preserve
+-- pullbacks.
+
+module _ where
+
+  data X : Type where
+    a b c : X
+
+  data Y : Type where
+    a b : Y
+
+  data Z : Type where
+    a : Z
+
+  f : X → Z
+  f _ = a
+
+  g : Y → Z
+  g _ = a
+
+  H : X × Y → f ×p g
+  H (x , y) = x , y , refl
+
+  mapH : Pfin (X × Y) → Pfin (f ×p g)
+  mapH = mapPfin H
+
+-- mapH is an isomorphism, but to×p is not surjective
+
+  G : (x : mapPfin f ×p mapPfin g) → x .fst ≡ η a → x .snd .fst ≡ ø →  ⊥
+  G x p q = {!!}
+    where
+      absurd : η a ≡ ø
+      absurd =
+        cong (mapPfin f) (sym p)
+        ∙ x .snd .snd
+        ∙ cong (mapPfin g) q

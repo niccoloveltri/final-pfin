@@ -132,6 +132,9 @@ bangS = (λ _ → tt) , (λ _ → tt)
 _≡S_ : ∀{ℓ} {S₁ S₂ : Setoid ℓ} (f g : S₁ →S S₂) → Type ℓ
 _≡S_ {S₂ = S₂} f g = ∀ x → S₂ .Rel (f .mor x) (g .mor x)
 
+idS : ∀{ℓ} {S : Setoid ℓ} → S →S S
+idS = (λ x → x) , λ r → r
+
 infix 21 _∘S_
 _∘S_ : ∀{ℓ} {S₁ S₂ S₃ : Setoid ℓ}
   → (g : S₂ →S S₃) (f : S₁ →S S₂)

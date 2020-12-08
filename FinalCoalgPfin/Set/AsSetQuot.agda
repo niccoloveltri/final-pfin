@@ -163,6 +163,3 @@ module _ (θInv : ∀ A {B} (R : B → B → Type) → (A → B / R) → [ A ⇒
     anaPfinQUniq' Xset (θ1Inv c) f
       (λ y → feq y ∙ λ i → mapPfinQ f (sectionθ1 c (~ i) y))
       x
-    
-
-  
