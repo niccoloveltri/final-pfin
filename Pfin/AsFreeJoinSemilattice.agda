@@ -374,6 +374,30 @@ List→Pfin∈ (x ∷ xs) (there p) = inr (List→Pfin∈ xs p)
 antisym⊆ : ∀{A}{s t : Pfin A} → s ⊆ t → t ⊆ s → s ≡ t
 antisym⊆ p q = antisym≤ (⊂2≤ _ _ p) (⊂2≤ _ _ q)
 
+-- injectivity of η
+
+ηisInjective' : {A : Type} (setA : isSet A)
+  → {a b : A}
+  → η a ⊆ η b → a ≡ b
+ηisInjective' setA {a} p =
+  ∥rec∥ (setA _ _)
+    (λ x → x)
+    (p a ∣ refl ∣)
+
+ηisInjective : {A : Type} (setA : isSet A)
+  → {a b : A}
+  → η a ≡ η b → a ≡ b
+ηisInjective setA {a} eq = 
+  ηisInjective' setA (subst (η a ⊆_) eq (λ _ m → m))  
+
+-- ø dijoint from η
+
+ødisjη' : {A : Type} {a : A} → η a ⊆ ø → ⊥
+ødisjη' {a = a} p = p a ∣ refl ∣
+
+ødisjη : {A : Type} {a : A} → η a ≡ ø → ⊥
+ødisjη {a = a} eq = ødisjη' (subst (η a ⊆_) eq (λ _ m → m))
+
 _≡ₛ_ : ∀{A} → Pfin A → Pfin A → Type
 s ≡ₛ t = (s ⊆ t) × (t ⊆ s)
 
@@ -469,13 +493,25 @@ mapPfinø f s eq =
     (mapPfinø' f s (subst (mapPfin f s ⊆_) eq (λ _ m → m)))
     λ { _ ()}   
 
-mapPfinη : ∀{A B} (f : A → B) (s : Pfin A) (b : B)
+mapPfinη' : ∀{A B} (setA : isSet A)
+  → (f : A → B)  → (∀ x y → f x ≡ f y → x ≡ y)
+  → (s : Pfin A) (b : B)
+  → mapPfin f s ⊆ η b → η b ⊆ mapPfin f s
+  → Σ[ a ∈ A ] s ≡ η a
+mapPfinη' setA f injf s b p q =
+  ∥rec∥ (λ { (x , r1) (y , r2) → Σ≡Prop (λ _ → trunc _ _) (ηisInjective setA (sym r1 ∙ r2)) })
+    (λ { (a , ma , eq) → a ,
+          (antisym⊆ (λ x mx → ∥map∥ (λ eq' → injf x a (eq' ∙ sym eq)) (p (f x) (∈ₛmapPfin f x s mx)))
+                    (λ x → ∥rec∥ (snd (x ∈ₛ s)) (λ eqx → subst (λ z → ⟨ z ∈ₛ s ⟩) (sym eqx) ma))) })
+    (pre∈ₛmapPfin f b s (q b ∣ refl ∣))
+
+mapPfinη : ∀{A B} (setA : isSet A) 
+  → (f : A → B)  → (∀ x y → f x ≡ f y → x ≡ y)
+  → (s : Pfin A) (b : B)
   → mapPfin f s ≡ η b → Σ[ a ∈ A ] s ≡ η a
-mapPfinη f =
-  elimPfinProp (λ x → _ , isPropΠ (λ b → isPropΠ (λ { eq (a1 , r1) (a2 , r2) → {!sym r1 ∙ r2!} })))
-    (λ b eq → {!imp!})
-    (λ a b eq → a , refl)
-    λ ih1 ih2 b eq → {!ih1 b !}  
+mapPfinη {A} setA f injf s b eq =
+  mapPfinη' setA f injf s b
+    (subst (mapPfin f s ⊆_) eq (λ _ m → m)) (subst (η b ⊆_) (sym eq) (λ _ m → m))
 
 ∪≡mapPfin : ∀{A B} (f : A → B) → (∀ x y → f x ≡ f y → x ≡ y)
   → (s : Pfin A) (t1 t2 : Pfin B)
@@ -495,11 +531,12 @@ to×p f g s = mapPfin fst s , mapPfin (fst ∘ snd) s ,
   ∙ cong (λ z → mapPfin z s) (λ i p → snd (snd p) i)
   ∙ sym (mapPfinComp s)
 
-to×pEquiv : ∀{A B C} (setC : isSet C) (f : A → C) (g : B → C)
+to×pEquiv : ∀{A B C} (setB : isSet B) (setC : isSet C)
+  → (f : A → C) (g : B → C)
   → ((∀ x y → g x ≡ g y → x ≡ y))
   → (as : Pfin A) (bs : Pfin B) (p : mapPfin f as ≡ mapPfin g bs)
   → isContr (fiber (to×p f g) (as , bs , p))
-to×pEquiv setC f g injg =
+to×pEquiv setB setC f g injg =
   elimPfinProp (λ _ → _ , isPropΠ (λ _ → isPropΠ (λ _ → isPropIsContr)))
     (λ t eq →
       (ø ,
@@ -509,10 +546,20 @@ to×pEquiv setC f g injg =
           (isSetΣ trunc (λ _ → isSetΣ trunc (λ _ → isProp→isSet (trunc _ _)))) _ _
           (sym (mapPfinø fst cs (cong fst eq'))) _ _ }) 
     (λ a t eq →
-      let (b , eq') = mapPfinη g t (f a) (sym eq) in
-        ((η (a , b , {!!})) ,
-         {!!}) ,
-         {!!} ) 
+      let (b , eq') = mapPfinη setB g injg t (f a) (sym eq) in
+        ((η (a , b , ηisInjective setC (eq ∙ cong (mapPfin g) eq'))) ,
+         Eq×p trunc _ _ refl (sym eq') _ _) ,
+         λ { (w , eqw) →
+           EqFiber (isSetΣ trunc (λ _ → isSetΣ trunc (λ _ → isProp→isSet (trunc _ _)))) _ _
+                   (antisym⊆
+                     (λ { x@(a' , b' , fa'≡gb') → ∥rec∥ (snd (x ∈ₛ w))
+                       (λ eqx →
+                         ∈Pfin×p setC f g injg fa'≡gb' w
+                                 (subst (λ z → ⟨ a' ∈ₛ z ⟩) (cong fst (sym eqw)) ∣ cong fst eqx ∣)) })
+                     λ { x@(a' , b' , fa'≡gb') mx →
+                       ∈Pfin×p setC f g injg fa'≡gb' (η (a , b , _))
+                               (subst (λ z → ⟨ a' ∈ₛ z ⟩) (cong fst eqw) (∈ₛmapPfin fst x w mx))})
+                   _ _ }) 
     λ {s1} {s2} ih1 ih2 t eq →
       ∥rec∥ isPropIsContr
         (λ { (u1 , u2 , eqt , eq1 , eq2) → 
@@ -555,6 +602,15 @@ to×pEquiv setC f g injg =
                        _ _ } })
         (∪≡mapPfin g injg t _ _ eq)
 
+
+Pfin×p : ∀{A B C} (setB : isSet B) (setC : isSet C)
+  → (f : A → C) (g : B → C)
+  → (∀ x y → g x ≡ g y → x ≡ y)
+  → Pfin (f ×p g) ≃ (mapPfin f ×p mapPfin g)
+Pfin×p setB setC f g injg =
+  (to×p f g) ,
+  (record { equiv-proof = λ { (s , t , eq)
+    → to×pEquiv setB setC f g injg s t eq } })
 
 {-
       ∥rec∥ isPropIsContr
@@ -668,6 +724,7 @@ from×p {f = f}{g} (as , bs , p) = lem as p
 -}
 
 
+
 -- A simple counterexample showing that Pfin does not preserve
 -- pullbacks.
 
@@ -697,7 +754,7 @@ module _ where
 -- mapH is an isomorphism, but to×p is not surjective
 
   G : (x : mapPfin f ×p mapPfin g) → x .fst ≡ η a → x .snd .fst ≡ ø →  ⊥
-  G x p q = {!!}
+  G x p q = ødisjη absurd
     where
       absurd : η a ≡ ø
       absurd =
