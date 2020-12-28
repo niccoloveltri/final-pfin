@@ -18,9 +18,10 @@ open import Cubical.Data.Sum renaming (map to map⊎; inl to inj₁; inr to inj�
 open import Cubical.Data.Empty renaming (elim to ⊥-elim; rec to ⊥-rec)
 open import Cubical.Relation.Binary
 open import Preliminaries
+open import Cubical.Relation.Nullary
 
 -- finite powerset as a HIT (the free join semilattice on A)
-data Pfin (A : Type) : Type where
+data Pfin {ℓ} (A : Type ℓ) : Type ℓ where
   ø     : Pfin A
   η     : A → Pfin A
   _∪_   : Pfin A → Pfin A → Pfin A
@@ -31,7 +32,7 @@ data Pfin (A : Type) : Type where
   trunc : isSet (Pfin A)
 
 -- recursion principle of Pfin
-module _ {A B : Type₀} (Bset : isSet B)
+module _ {ℓ}{A B : Type ℓ} (Bset : isSet B)
          (bø : B) (bη : A → B)
          (_b∪_ : B → B → B)
          (bcom  : ∀ x y → x b∪ y ≡ y b∪ x)
@@ -53,7 +54,7 @@ module _ {A B : Type₀} (Bset : isSet B)
          i i₁
 
 -- finite subset membership
-_∈ₛ_ : ∀{A} → A → Pfin A → hProp ℓ-zero
+_∈ₛ_ : ∀{A : Type} → A → Pfin A → hProp₀
 x ∈ₛ ø = ⊥ₚ
 x ∈ₛ η y = x ≡ₚ y
 x ∈ₛ (s₁ ∪ s₂) = (x ∈ₛ s₁) ⊔ (x ∈ₛ s₂)
@@ -83,7 +84,7 @@ x ∈ₛ trunc s₁ s₂ p q i j =
   isSetHProp (x ∈ₛ s₁) (x ∈ₛ s₂) (cong (x ∈ₛ_) p) (cong (x ∈ₛ_) q) i j
 
 -- action on functions
-mapPfin : ∀ {A B} → (A → B) → Pfin A → Pfin B
+mapPfin : ∀ {ℓ}{A B : Type ℓ} → (A → B) → Pfin A → Pfin B
 mapPfin f ø = ø
 mapPfin f (η x) = η (f x)
 mapPfin f (x ∪ y) = (mapPfin f x) ∪ (mapPfin f y)
@@ -96,8 +97,8 @@ mapPfin f (trunc p q x y i j) =
 
 
 -- elimination principle into a mere proposition
-module _ {A : Type₀}
-         (P : Pfin A → hProp ℓ-zero) (pø : ⟨ P ø ⟩) (pη : ∀ a → ⟨ P (η a) ⟩)
+module _ {ℓ}{A : Type ℓ}
+         (P : Pfin A → hProp ℓ) (pø : ⟨ P ø ⟩) (pη : ∀ a → ⟨ P (η a) ⟩)
          (p∪ : ∀ {s₁ s₂} → ⟨ P s₁ ⟩ → ⟨ P s₂ ⟩ → ⟨ P (s₁ ∪ s₂) ⟩) where
 
   elimPfinProp : ∀ x → ⟨ P x ⟩
@@ -131,7 +132,15 @@ module _ {A : Type₀}
       (trunc s s' p q)
       i j
 
-mapPfinComp : ∀ {A B C} {g : B → C} {f : A → B} (s : Pfin A)
+mapPfinId : ∀{ℓ} {A : Type ℓ} (s : Pfin A)
+  → mapPfin (λ x → x) s ≡ s
+mapPfinId =
+  elimPfinProp (λ _ → _ , trunc _ _)
+    refl
+    (λ _ → refl)
+    λ eq1 eq2 → cong₂ _∪_ eq1 eq2
+
+mapPfinComp : ∀{ℓ} {A B C : Type ℓ} {g : B → C} {f : A → B} (s : Pfin A)
   → mapPfin g (mapPfin f s) ≡ mapPfin (g ∘ f) s
 mapPfinComp =
   elimPfinProp (λ _ → _ , trunc _ _)
@@ -140,17 +149,17 @@ mapPfinComp =
     λ eq1 eq2 → cong₂ _∪_ eq1 eq2
 
 -- an algebraic order, given by the presence of joins
-_≤_ : ∀{A} → Pfin A → Pfin A → Type₀
+_≤_ : ∀{A : Type} → Pfin A → Pfin A → Type₀
 s ≤ t = (s ∪ t) ≡ t
 
-antisym≤ : ∀{A}{s t : Pfin A} → s ≤ t → t ≤ s → s ≡ t
+antisym≤ : ∀{A : Type}{s t : Pfin A} → s ≤ t → t ≤ s → s ≡ t
 antisym≤ p q = sym q ∙ com _ _ ∙ p
 
-isProp≤ : ∀{A}{s t : Pfin A} → isProp (s ≤ t)
+isProp≤ : ∀{A : Type}{s t : Pfin A} → isProp (s ≤ t)
 isProp≤ = trunc _ _
 
 -- joins are least upper bounds wrt. ≤
-∪isLub : ∀{A}{s t : Pfin A} (u : Pfin A)
+∪isLub : ∀{A : Type}{s t : Pfin A} (u : Pfin A)
   → s ≤ u → t ≤ u → (s ∪ t) ≤ u
 ∪isLub {s = s}{t} u ls lt =
   sym (ass _ _ _)
@@ -158,15 +167,15 @@ isProp≤ = trunc _ _
   ∙ ls
 
 -- subset relation
-_⊆_ : ∀{A} → Pfin A → Pfin A → Type₀
+_⊆_ : ∀{A : Type} → Pfin A → Pfin A → Type₀
 s ⊆ t = ∀ x → ⟨ x ∈ₛ s ⟩ → ⟨ x ∈ₛ t ⟩
 
-trans⊆ : ∀{A} {xs ys zs : Pfin A}
+trans⊆ : ∀{A : Type} {xs ys zs : Pfin A}
   → xs ⊆ ys → ys ⊆ zs → xs ⊆ zs
 trans⊆ p q x m = q x (p x m)  
 
 -- ⊆ implies ≤ 
-⊂2≤-η : ∀{A}(a : A) (s : Pfin A) → ⟨ a ∈ₛ s ⟩ → η a ≤ s
+⊂2≤-η : ∀{A : Type}(a : A) (s : Pfin A) → ⟨ a ∈ₛ s ⟩ → η a ≤ s
 ⊂2≤-η a = elimPfinProp (λ _ → _ , isPropΠ λ x → isProp≤)
   (λ ())
   (λ b → ∥rec∥ isProp≤ λ eq → cong (_∪ η b) (cong η eq) ∙ idem _)
@@ -174,7 +183,7 @@ trans⊆ p q x m = q x (p x m)
     λ { (inj₁ m) → ass _ _ _ ∙ cong (_∪ _) (p₁ m)
       ; (inj₂ m) → ass _ _ _ ∙ cong (_∪ s₂) (com _ _) ∙ sym (ass _ _ _) ∙ cong (_ ∪_) (p₂ m)})
 
-⊂2≤ : ∀{A}(s t : Pfin A) → t ⊆ s → t ≤ s
+⊂2≤ : ∀{A : Type}(s t : Pfin A) → t ⊆ s → t ≤ s
 ⊂2≤ s = elimPfinProp (λ _ → _ , isPropΠ λ x → isProp≤)
   (λ p → com ø s ∙ nr s)
   (λ a m → ⊂2≤-η a s (m a ∣ refl ∣))
@@ -258,22 +267,22 @@ pre∈ₛmapPfin f b =
       (λ { (inj₁ m) → ∥map∥ (λ {(a , m , eq) → a , inl m , eq}) (p₁ m)
          ; (inj₂ m) → ∥map∥ (λ {(a , m , eq) → a , inr m , eq}) (p₂ m) })
 
-∪⊆ : ∀{A} (s1 s2 t : Pfin A) →  s1 ⊆ t → s2 ⊆ t → (s1 ∪ s2) ⊆ t
+∪⊆ : ∀{A : Type} (s1 s2 t : Pfin A) →  s1 ⊆ t → s2 ⊆ t → (s1 ∪ s2) ⊆ t
 ∪⊆ s1 s2 t p q x =
   ∥rec∥ (snd (x ∈ₛ t)) λ { (inj₁ m) → p x m ; (inj₂ m) → q x m } 
 
-∪⊆1 : ∀{A} (s1 s2 t : Pfin A) →  (s1 ∪ s2) ⊆ t → s1 ⊆ t
+∪⊆1 : ∀{A : Type} (s1 s2 t : Pfin A) →  (s1 ∪ s2) ⊆ t → s1 ⊆ t
 ∪⊆1 s1 s2 t p x m = p x (inl m)
 
-∪⊆2 : ∀{A} (s1 s2 t : Pfin A) →  (s1 ∪ s2) ⊆ t → s2 ⊆ t
+∪⊆2 : ∀{A : Type} (s1 s2 t : Pfin A) →  (s1 ∪ s2) ⊆ t → s2 ⊆ t
 ∪⊆2 s1 s2 t p x m = p x (inr m)
 
 
-map∪⊆ : ∀{A} (s1 s2 t1 t2 : Pfin A) →  s1 ⊆ t1 → s2 ⊆ t2 → (s1 ∪ s2) ⊆ (t1 ∪ t2)
+map∪⊆ : ∀{A : Type} (s1 s2 t1 t2 : Pfin A) →  s1 ⊆ t1 → s2 ⊆ t2 → (s1 ∪ s2) ⊆ (t1 ∪ t2)
 map∪⊆ s1 s2 t1 t2 p q x =
   ∥map∥ λ { (inj₁ m) → inj₁ (p x m) ; (inj₂ m) → inj₂ (q x m) }
 
-⊆∪ : ∀{A} (s1 s2 t : Pfin A)
+⊆∪ : ∀{A : Type} (s1 s2 t : Pfin A)
   → t ⊆ (s1 ∪ s2) → ∃[ t1 ∈ Pfin A ] Σ[ t2 ∈ Pfin A ] (t1 ⊆ s1) × (t2 ⊆ s2) × (t ≡ t1 ∪ t2)
 ⊆∪ s1 s2 =
   elimPfinProp (λ _ → _ , isPropΠ (λ _ → propTruncIsProp))
@@ -352,27 +361,25 @@ pre⊆mapPfin f =
 
 
 -- turning a list into a finite subset
-List→Pfin : ∀{A} → List A → Pfin A
+List→Pfin : ∀{A : Type} → List A → Pfin A
 List→Pfin [] = ø
 List→Pfin (x ∷ xs) = η x ∪ List→Pfin xs
 
 -- properties of membership in the finite subset associated to a list
-∈ₛList→Pfin : ∀{A} (xs : List A){a : A}
+∈ₛList→Pfin : ∀{A : Type} (xs : List A){a : A}
   → ⟨ a ∈ₛ List→Pfin xs ⟩ → ∥ a ∈ xs ∥
 ∈ₛList→Pfin (x ∷ xs) = ∥rec∥ propTruncIsProp
   λ { (inj₁ p) → ∥map∥ (λ eq → subst (_∈ _) (sym eq) here) p
     ; (inj₂ p) → ∥map∥ there (∈ₛList→Pfin xs p)} 
 
-List→Pfin∈ : ∀{A} (xs : List A){a : A}
+List→Pfin∈ : ∀{A : Type} (xs : List A){a : A}
   → a ∈ xs → ⟨ a ∈ₛ List→Pfin xs ⟩
 List→Pfin∈ (x ∷ xs) here = inl ∣ refl ∣
 List→Pfin∈ (x ∷ xs) (there p) = inr (List→Pfin∈ xs p)
 
 
 
-
-
-antisym⊆ : ∀{A}{s t : Pfin A} → s ⊆ t → t ⊆ s → s ≡ t
+antisym⊆ : ∀{A : Type}{s t : Pfin A} → s ⊆ t → t ⊆ s → s ≡ t
 antisym⊆ p q = antisym≤ (⊂2≤ _ _ p) (⊂2≤ _ _ q)
 
 -- injectivity of η
@@ -399,7 +406,7 @@ antisym⊆ p q = antisym≤ (⊂2≤ _ _ p) (⊂2≤ _ _ q)
 ødisjη : {A : Type} {a : A} → η a ≡ ø → ⊥
 ødisjη {a = a} eq = ødisjη' (subst (η a ⊆_) eq (λ _ m → m))
 
-_≡ₛ_ : ∀{A} → Pfin A → Pfin A → Type
+_≡ₛ_ : ∀{A : Type} → Pfin A → Pfin A → Type
 s ≡ₛ t = (s ⊆ t) × (t ⊆ s)
 
 _×p_ : {A B C : Type} → (A → C) → (B → C) → Type
@@ -514,6 +521,17 @@ mapPfinη {A} setA f injf s b eq =
   mapPfinη' setA f injf s b
     (subst (mapPfin f s ⊆_) eq (λ _ m → m)) (subst (η b ⊆_) (sym eq) (λ _ m → m))
 
+∪⊆mapPfin : ∀{A B} (f : A → B)
+  → (s : Pfin A) (t1 t2 : Pfin B)
+  → (t1 ∪ t2) ⊆ mapPfin f s
+  → ∃[ s1 ∈ Pfin A ] Σ[ s2 ∈ Pfin A ] ((s1 ∪ s2) ⊆ s) × (t1 ≡ mapPfin f s1) × (t2 ≡ mapPfin f s2)
+∪⊆mapPfin f s t1 t2 mt =
+  ∥rec∥ propTruncIsProp
+    (λ { (u1 , m1 , eq1) → ∥map∥
+      (λ { (u2 , m2 , eq2) → u1 , u2 , ∪⊆ u1 u2 s m1 m2 , sym eq1 , sym eq2 })
+      (pre⊆mapPfin f s t2 λ x mx → mt x (inr mx)) })
+    (pre⊆mapPfin f s t1 λ x mx → mt x (inl mx))
+
 ∪≡mapPfin : ∀{A B} (f : A → B) → (∀ x y → f x ≡ f y → x ≡ y)
   → (s : Pfin A) (t1 t2 : Pfin B)
   → (t1 ∪ t2) ≡ mapPfin f s
@@ -616,6 +634,11 @@ Pfin×p setB setC f g injg =
 ×pℕ : {A : ℕ → Type} {C : Type}
   → (f : ∀ n → A n → C) → Type
 ×pℕ {A} f = Σ[ a ∈ ((n : ℕ) → A n) ] ∀ n → f (suc n) (a (suc n)) ≡ f 0 (a 0)
+
+isSet×pℕ : {A : ℕ → Type} {C : Type}
+  → (∀ n → isSet (A n)) → isSet C
+  → (f : ∀ n → A n → C) → isSet (×pℕ f)
+isSet×pℕ sA sC f = isSetΣ (isSetΠ sA) λ _ → isProp→isSet (isPropΠ (λ _ → sC _ _))
 
 to×pℕ : {A : ℕ → Type}{C : Type} (f : ∀ n → A n → C) 
   → Pfin (×pℕ f) → ×pℕ (mapPfin ∘ f)
@@ -773,27 +796,19 @@ module _ (cc : (P : ℕ → Type) → (∀ n → ∥ P n ∥) → ∥ (∀ n →
           p
   
   
-  Pfin×pℕ' : {A : ℕ → Type} {C : Type}
-    → (setA : ∀ n → isSet (A (suc n))) (setC : isSet C)
-    → (f0 : A 0 → C)
-    → (f : ∀ n → A (suc n) → C)
-    → (injf : ∀ n (x y : A (suc n)) → f n x ≡ f n y → x ≡ y)
-    → Pfin (×pℕ (funs {A} f0 f)) ≃ ×pℕ (λ n → mapPfin (funs {A} f0 f n))
-  Pfin×pℕ' {A} setA setC f0 f injf = (to×pℕ (funs {A} f0 f)) ,
-    record { equiv-proof = λ x@(a , eq) →
-      subst (λ z → isContr (fiber (to×pℕ (funs {A} f0 f)) z))
-            (λ i → (λ n → argsEq {A} a n i) , eq)
-            (to×pℕEquiv setA setC f0 f injf (a 0) (a ∘ suc) eq) }
-  
   Pfin×pℕ : {A : ℕ → Type} {C : Type}
     → (setA : ∀ n → isSet (A (suc n))) (setC : isSet C)
     → (f : ∀ n → A n → C)
     → (injf : ∀ n (x y : A (suc n)) → f (suc n) x ≡ f (suc n) y → x ≡ y)
     → Pfin (×pℕ f) ≃ ×pℕ (mapPfin ∘ f)
-  Pfin×pℕ {A} setA setC f injf =
-    subst (λ f → Pfin (×pℕ f) ≃ ×pℕ (λ n → mapPfin (f n)))
-          (funExt (funsEq {A} f))
-          (Pfin×pℕ' {A} setA setC (f 0) (f ∘ suc) injf)
+  Pfin×pℕ {A} setA setC f injf = (to×pℕ f) ,
+    (record { equiv-proof =
+      subst (λ f → ∀ x → isContr (fiber (to×pℕ f) x))
+            (funExt (funsEq {A} f))
+            (λ x@(a , eq) → subst (isContr ∘ fiber (to×pℕ (funs {A} (f 0) (f ∘ suc))))
+                                  (λ i → (λ n → argsEq {A} a n i) , eq)
+                                  (to×pℕEquiv setA setC (f 0) (f ∘ suc) injf (a 0) (a ∘ suc) eq))  })
+  
 
 
 

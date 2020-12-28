@@ -12,6 +12,8 @@ open import Cubical.HITs.PropositionalTruncation as PropTrunc
 open import Cubical.HITs.SetQuotients
   renaming (rec to recQ; rec2 to recQ2)
 open import Cubical.Data.Sigma
+open import Cubical.Data.Nat 
+open import Cubical.Data.Bool
 open import Cubical.Data.List renaming (map to mapList) hiding ([_])
 open import Cubical.Data.Sum renaming (map to map⊎; inl to inj₁; inr to inj₂)
 open import Cubical.Data.Empty renaming (elim to ⊥-elim; rec to ⊥-rec)
@@ -20,6 +22,8 @@ open import Preliminaries
 open import ListRelations
 open import Trees
 open import Pfin.AsFreeJoinSemilattice
+open import Relation.Nullary
+open import Cubical.Data.Nat.Order hiding (eq) renaming (_≤_ to _≤N_)
 
 -- the relation relating lists with the same elements
 SameEls : {A : Type} → List A → List A → Type
@@ -157,3 +161,45 @@ mapPfinQ : ∀{A B} (f : A → B) → PfinQ A → PfinQ B
 mapPfinQ f = recQ squash/ (λ xs → [ mapList f xs ])
   λ xs ys p → eq/ _ _ (DRelatorMapList f (p .fst) , DRelatorMapList f (p .snd))
 
+{-
+-- size
+
+module _ {A : Type} (decEq : (x y : A) → Dec (x ≡ y)) where
+
+  dec∈ : ∀ (x : A) xs → Dec (x ∈ xs)
+  dec∈ x [] = no (λ ())
+  dec∈ x (y ∷ xs) with decEq x y
+  ... | yes p = yes (hereEq p)
+  ... | no ¬p with dec∈ x xs
+  ... | no ¬q = no (λ { here → ¬p refl ; (there m) → ¬q m })
+  ... | yes p = yes (there p)
+
+  lengthNoDup' : (n : ℕ) (xs : List A) → length xs ≤N n → ℕ
+  lengthNoDup' zero [] eq = zero
+  lengthNoDup' zero (x ∷ xs) eq = ⊥-elim {A = λ _ → ℕ} (snotz (≤-antisym {m = suc (length xs)} eq zero-≤))
+  lengthNoDup' (suc n) [] eq = zero
+  lengthNoDup' (suc n) (x ∷ xs) eq with dec∈ x xs
+  ... | no ¬p = suc (lengthNoDup' n xs (pred-≤-pred eq))
+  ... | yes p = lengthNoDup' n (remove xs p) (≤-trans (subst (length (remove xs p) ≤N_) (sym (lengthRemove p)) (≤-suc ≤-refl)) (pred-≤-pred eq))
+
+  lengthNoDup : List A → ℕ
+  lengthNoDup xs = lengthNoDup' (length xs) xs ≤-refl
+
+  lengthNoDupEq' : (n : ℕ) (xs ys : List A)
+    → (px : length xs ≤N n) (py : length ys ≤N n)
+    → SameEls xs ys
+    → lengthNoDup' n xs px ≡ lengthNoDup' n ys py
+  lengthNoDupEq' zero [] [] px py s = refl
+  lengthNoDupEq' zero [] (x ∷ ys) px py s = ⊥-elim {A = λ _ → zero ≡ ⊥-elim {A = λ _ → ℕ} (snotz (≤-antisym py zero-≤))} (snotz (≤-antisym {m = suc (length ys)} py zero-≤))
+  lengthNoDupEq' zero (x ∷ xs) ys px py s = ⊥-elim {A = λ _ → ⊥-elim {A = λ _ → ℕ} (snotz (≤-antisym px zero-≤)) ≡ lengthNoDup' zero ys py} (snotz (≤-antisym {m = suc (length xs)} px zero-≤))
+  lengthNoDupEq' (suc n) [] ys px py s = {!!}
+  lengthNoDupEq' (suc n) (x ∷ xs) ys px py s with dec∈ x xs
+  ... | no ¬m = {!!}
+  ... | yes m = {!!}
+
+
+  size : PfinQ A → ℕ
+  size = recQ isSetℕ lengthNoDup {!!}
+ 
+
+-}
