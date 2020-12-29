@@ -71,6 +71,13 @@ AdjLim (A , r) C = iso
   (λ g → funExt (λ _ → refl))
 
 
+lem-injective-lim2 : ∀{ℓ} (c : ωChain ℓ) (C : Type ℓ)
+  → (g : C → ωLimit c)
+  → ∀ x y → (∀ n → Iso.fun (AdjLim c C) g .fst n x ≡ Iso.fun (AdjLim c C) g .fst n y)
+  → g x ≡ g y
+lem-injective-lim2 c C g x y p =
+  Σ≡Prop {!!} (funExt p)
+
 lem-injective-lim : ∀{ℓ} (c : ωChain ℓ) (C : Type ℓ)
   → (g : C → ωLimit c)
   → (∀ x y → (∀ n → Iso.fun (AdjLim c C) g .fst n x ≡ Iso.fun (AdjLim c C) g .fst n y) → x ≡ y)
@@ -568,229 +575,369 @@ misInjective' s t p y@(u , eq) my =
 
 
 
+module FromInjectivity (minj : ∀ s t → m s ≡ m t → s ≡ t) where
+
+  complete' : ∀ s t 
+    → (∀ n → mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) s
+                     ≡ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) t)
+    → m s ≡ m t
+  complete' s t p = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _))
+    (funExt (λ { zero → refl ;
+                 (suc n) → antisym⊆
+                   (λ x mx → ∥rec∥ (snd ((x ∈ₛ mapPfin (iMapPfin n) (mapPfin (proj iPfin-ch (suc n)) t))))
+                     (λ { (y , my , eq) → subst (λ z → ⟨ x ∈ₛ z ⟩)
+                                                 (sym (mapPfinComp t
+                                                   ∙ cong (λ f → mapPfin f t) (funExt (λ z → z .snd n))
+                                                   ∙ sym (p n)
+                                                   ∙ cong (λ f → mapPfin f s) (sym (funExt (λ z → z .snd n)))
+                                                   ∙ sym (mapPfinComp s)))
+                                                 (subst (λ z → ⟨ z ∈ₛ mapPfin (iMapPfin n) (mapPfin (proj iPfin-ch (suc n)) s) ⟩)
+                                                        eq
+                                                        (∈ₛmapPfin (iMapPfin n) y (mapPfin (proj iPfin-ch (suc n)) s) my)) })
+                     (pre∈ₛmapPfin (iMapPfin n) x (mapPfin (proj iPfin-ch (suc n)) s) mx))
+                   (λ x mx → ∥rec∥ (snd ((x ∈ₛ mapPfin (iMapPfin n) (mapPfin (proj iPfin-ch (suc n)) s))))
+                     (λ { (y , my , eq) → subst (λ z → ⟨ x ∈ₛ z ⟩)
+                                                 (sym (mapPfinComp s
+                                                   ∙ cong (λ f → mapPfin f s) (funExt (λ z → z .snd n))
+                                                   ∙ p n
+                                                   ∙ cong (λ f → mapPfin f t) (sym (funExt (λ z → z .snd n)))
+                                                   ∙ sym (mapPfinComp t)))
+                                                 (subst (λ z → ⟨ z ∈ₛ mapPfin (iMapPfin n) (mapPfin (proj iPfin-ch (suc n)) t) ⟩)
+                                                        eq
+                                                        (∈ₛmapPfin (iMapPfin n) y (mapPfin (proj iPfin-ch (suc n)) t) my)) })
+                     (pre∈ₛmapPfin (iMapPfin n) x (mapPfin (proj iPfin-ch (suc n)) t) mx))}))
+
+  complete : (x y1 y2 : ωPfin) (z : ℕ → ωPfin)
+    → (∀ n → (z n ≡ y1) ⊎ (z n ≡ y2))
+    → (∀ n → z n .fst n ≡ x .fst n)
+    → ⟨ x ∈ₛ (η y1 ∪ η y2) ⟩
+  complete x y1 y2 z p q = subst (λ z → ⟨ x ∈ₛ z ⟩) (minj s t (complete' s t eq)) (inl ∣ refl ∣)
+    where
+      t : Pfin ωPfin
+      t = η y1 ∪ η y2
+
+      s : Pfin ωPfin
+      s = η x ∪ t
+
+      sub : ∀ n → mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) s
+                     ⊆ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) t
+      sub n a = ∥rec∥ propTruncIsProp
+        (λ { (inj₁ r) →
+                   ∥map∥ (λ eq → map⊎ (λ eq' → ∣ eq ∙ sym (q n) ∙ cong (λ w → w .fst n) eq' ∣)
+                                      (λ eq' → ∣ eq ∙ sym (q n) ∙ cong (λ w → w .fst n) eq' ∣)
+                                      (p n))
+                         r ;
+             (inj₂ r) → r })
+
+      eq : ∀ n → mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) s
+                     ≡ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) t
+      eq n = antisym⊆ (sub n) (λ a → inr)
+
+  complete2 : ∀ x s1 s2 (z : ℕ → ωPfin)
+    → (∀ n → ⟨ z n ∈ₛ (s1 ∪ s2) ⟩)
+    → (∀ n → z n .fst n ≡ x .fst n)
+    → ⟨ x ∈ₛ (s1 ∪ s2) ⟩
+  complete2 x s1 s2 z p q = subst (λ z → ⟨ x ∈ₛ z ⟩) (minj s t (complete' s t eq)) (inl ∣ refl ∣)
+    where
+      t : Pfin ωPfin
+      t = s1 ∪ s2
+
+      s : Pfin ωPfin
+      s = η x ∪ t
+
+      sub : ∀ n → mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) s
+                     ⊆ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) t
+      sub n a = ∥rec∥ propTruncIsProp
+        (λ { (inj₁ r) →
+          ∥rec∥ propTruncIsProp
+            (λ eq → ∥map∥ (map⊎ (λ r → subst (λ a → ⟨ a ∈ₛ mapPfin (λ z → z .fst n) s1 ⟩) (q n ∙ sym eq) (∈ₛmapPfin (λ z → z .fst n) (z n) s1 r))
+                                (λ r → subst (λ a → ⟨ a ∈ₛ mapPfin (λ z → z .fst n) s2 ⟩) (q n ∙ sym eq) (∈ₛmapPfin (λ z → z .fst n) (z n) s2 r)))
+                                (p n))
+            r ;
+             (inj₂ r) → r })
+
+      eq : ∀ n → mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) s
+                     ≡ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) t
+      eq n = antisym⊆ (sub n) (λ a → inr)
 
 
-misInjective : ∀ s t → m s ≡ m t → s ≡ t
-misInjective _ _ eq =
-  lem-injective-lim iPfin-ch _ _
-    {!!}
-    _ _ eq
+module Tonjectivity (complete2 : ∀ x s1 s2 (z : ℕ → ωPfin)
+                      → (∀ n → ⟨ z n ∈ₛ (s1 ∪ s2) ⟩)
+                      → (∀ n → z n .fst n ≡ x .fst n)
+                      → ⟨ x ∈ₛ (s1 ∪ s2) ⟩)
+                    (cc : (P : ℕ → Type) → (∀ n → ∥ P n ∥) → ∥ (∀ n → P n) ∥) where
+                    
+  minj' : ∀ s t 
+    → m s ≡ m t
+    → ∀ n → mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) s
+                     ≡ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) t
+  minj' s t eq n =
+    cong (λ f → mapPfin f s) (funExt (λ x → sym (x .snd n)))
+    ∙ sym (mapPfinComp s)
+    ∙ funExt⁻ (cong fst eq) (suc n)
+    ∙ mapPfinComp t
+    ∙ cong (λ f → mapPfin f t) (funExt (λ x → x .snd n))
+
+  minj-lem3 : ∀ (x : ωPfin) t
+    → (∀ n → ⟨ x .fst n ∈ₛ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) t ⟩)
+    → ∃[ z ∈ (ℕ → ωPfin) ] (∀ n → ⟨ z n ∈ₛ t ⟩  × (z n .fst n ≡ x .fst n))
+  minj-lem3 x t p = ∥map∥ (λ f → (λ n → f n .fst) , λ n → f n .snd .fst , f n .snd .snd) (cc _ lem)
+    where
+      lem : ∀ n → ∃[ z ∈ ωPfin ] ⟨ z ∈ₛ t ⟩  × (z .fst n ≡ x .fst n)
+      lem n = pre∈ₛmapPfin _ _ t (p n)
+
+
+  minj-lem2 : ∀ x t
+    → (∀ n → ⟨ x .fst n ∈ₛ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) t ⟩)
+    → ⟨ x ∈ₛ t ⟩
+  minj-lem2 x = elimPfinProp (λ t → _ , isPropΠ (λ _ → snd (x ∈ₛ t)))
+    (λ p → p 0)
+    (λ a p → ∥map∥ (λ q → Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _)) (funExt q)) (cc _ p))
+    λ {s1}{s2} ih1 ih2 p → ∥rec∥ propTruncIsProp
+      (λ { (z , q) → complete2 x s1 s2 z (λ n → q n .fst) (λ n → q n .snd) })
+      (minj-lem3 x (s1 ∪ s2) p) 
+
+  minj-lem : ∀ s t
+    → (∀ n → mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) s
+                     ⊆ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) t)
+    → s ⊆ t
+  minj-lem = elimPfinProp (λ _ → _ , isPropΠ (λ t → isPropΠ (λ _ → isPropΠ (λ x → isPropΠ (λ _ → snd (x ∈ₛ t))))))
+    (λ t p x mx → ⊥-rec mx)
+    (λ a t p x mx → minj-lem2 x t (λ n → p n (x .fst n) (∥map∥ (cong (λ z → z .fst n)) mx)))
+    (λ ih1 ih2 t p x → ∥rec∥ (snd (x ∈ₛ t))
+      (λ { (inj₁ mx) → ih1 t (λ n y my → p n y (inl my)) x mx
+         ; (inj₂ mx) → ih2 t (λ n y my → p n y (inr my)) x mx }))
+
+  minj : ∀ s t → m s ≡ m t → s ≡ t
+  minj s t eq =
+    antisym⊆ (minj-lem s t (λ n → subst (mapPfin (λ x → x .fst n) s ⊆_) (minj' s t eq n) (λ _ mx → mx)))
+             (minj-lem t s (λ n → subst (mapPfin (λ x → x .fst n) t ⊆_) (minj' t s (sym eq) n) (λ _ mx → mx)))
 
 
 
-iPfin2 : ℕ → Type 
-iPfin2 zero = ωPfin
-iPfin2 (suc n) = Pfin (iPfin2 n)
 
-isSetiPfin2 : ∀ n → isSet (iPfin2 n)
-isSetiPfin2 zero = isSetωPfin
-isSetiPfin2 (suc n) = trunc
 
-iMapPfin2 : ∀ n → iPfin2 (suc n) → iPfin2 n
-iMapPfin2 zero = m
-iMapPfin2 (suc n) = mapPfin (iMapPfin2 n)
+-- misInjective : ∀ s t → m s ≡ m t → s ≡ t
+-- misInjective _ _ eq =
+--   lem-injective-lim iPfin-ch _ _
+--     {!!}
+--     _ _ eq
 
-iPfin2-ch : ωChain₀
-iPfin2-ch = iPfin2 , iMapPfin2
 
--- the limit of the ω-chain iPfin2-ch
-ωPfin2 : Type
-ωPfin2 = ωLimit iPfin2-ch
 
-iMapPfin2isInjective : ∀ n (x y : iPfin2 (suc n))
-  → iMapPfin2 n x ≡ iMapPfin2 n y → x ≡ y
-iMapPfin2isInjective zero x y eq = misInjective x y eq
-iMapPfin2isInjective (suc n) x y eq =
-  mapPfinInj (iMapPfin2 n) (iMapPfin2isInjective n) x y eq
+-- iPfin2 : ℕ → Type 
+-- iPfin2 zero = ωPfin
+-- iPfin2 (suc n) = Pfin (iPfin2 n)
 
-u : ∀ n → iPfin2 n → ωPfin
-u zero x = x
-u (suc n) x = u n (iMapPfin2 n x)
+-- isSetiPfin2 : ∀ n → isSet (iPfin2 n)
+-- isSetiPfin2 zero = isSetωPfin
+-- isSetiPfin2 (suc n) = trunc
 
-uisInjective : ∀ n (x y : iPfin2 n)
-  → u n x ≡ u n y → x ≡ y
-uisInjective zero x y eq = eq
-uisInjective (suc n) x y eq =
-  iMapPfin2isInjective n _ _ (uisInjective n _ _ eq)
+-- iMapPfin2 : ∀ n → iPfin2 (suc n) → iPfin2 n
+-- iMapPfin2 zero = m
+-- iMapPfin2 (suc n) = mapPfin (iMapPfin2 n)
 
-uLem : ∀ (x : ωPfin2) n
-  → u n (iMapPfin2 n (x .fst (suc n))) ≡ m (x .fst 1)
-uLem x zero = refl
-uLem x (suc n) = cong (λ z → u n (iMapPfin2 n z)) (x .snd (suc n)) ∙ uLem x n
+-- iPfin2-ch : ωChain₀
+-- iPfin2-ch = iPfin2 , iMapPfin2
 
-uLem2 : ∀ (x : ×pℕ u) n
-  → u (suc n) (x .fst (suc n)) ≡ u n (x .fst n)
-uLem2 x zero = x .snd 0
-uLem2 (x , p) (suc n) = uLem2 ((λ n → iMapPfin2 n (x (suc n))) , λ n → p (suc n) ∙ sym (p 0)) n
+-- -- the limit of the ω-chain iPfin2-ch
+-- ωPfin2 : Type
+-- ωPfin2 = ωLimit iPfin2-ch
 
--- uLem2-sh : ∀ (x : ×pℕ {!!}) n
+-- iMapPfin2isInjective : ∀ n (x y : iPfin2 (suc n))
+--   → iMapPfin2 n x ≡ iMapPfin2 n y → x ≡ y
+-- iMapPfin2isInjective zero x y eq = misInjective x y eq
+-- iMapPfin2isInjective (suc n) x y eq =
+--   mapPfinInj (iMapPfin2 n) (iMapPfin2isInjective n) x y eq
+
+-- u : ∀ n → iPfin2 n → ωPfin
+-- u zero x = x
+-- u (suc n) x = u n (iMapPfin2 n x)
+
+-- uisInjective : ∀ n (x y : iPfin2 n)
+--   → u n x ≡ u n y → x ≡ y
+-- uisInjective zero x y eq = eq
+-- uisInjective (suc n) x y eq =
+--   iMapPfin2isInjective n _ _ (uisInjective n _ _ eq)
+
+-- uLem : ∀ (x : ωPfin2) n
+--   → u n (iMapPfin2 n (x .fst (suc n))) ≡ m (x .fst 1)
+-- uLem x zero = refl
+-- uLem x (suc n) = cong (λ z → u n (iMapPfin2 n z)) (x .snd (suc n)) ∙ uLem x n
+
+-- uLem2 : ∀ (x : ×pℕ u) n
 --   → u (suc n) (x .fst (suc n)) ≡ u n (x .fst n)
+-- uLem2 x zero = x .snd 0
+-- uLem2 (x , p) (suc n) = uLem2 ((λ n → iMapPfin2 n (x (suc n))) , λ n → p (suc n) ∙ sym (p 0)) n
 
--- subtypeEquiv : {A : Type} {P Q : A → Type}
---   → (∀ a → isProp (P a)) → (∀ a → isProp (Q a))
---   → (∀ {a} → P a → Q a) → (∀ {a} → Q a → P a)
---   → Σ A P ≃ Σ A Q
--- subtypeEquiv pP pQ P2Q Q2P = Σ-cong-equiv-snd {!!}
---   (λ x → x .fst , P2Q (x .snd)) ,
---   record { equiv-proof = λ y → ((y .fst , Q2P (y .snd)) ,
---                                  Σ≡Prop pQ refl) ,
---                                 λ z → Σ≡Prop {!!} {!!} }  
+-- -- uLem2-sh : ∀ (x : ×pℕ {!!}) n
+-- --   → u (suc n) (x .fst (suc n)) ≡ u n (x .fst n)
 
-ωPfin2-iso-×pℕ : Iso (ωPfin2) (×pℕ u)
-ωPfin2-iso-×pℕ = Σ-cong-iso-snd
-  λ x → iso (λ p n → uLem (x , p) n ∙ p 0)
-             (λ q n → uisInjective n _ _ (uLem2 (x , q) n))
-             (λ _ → isPropΠ (λ _ → isSetωPfin _ _) _ _)
-             λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _) _ _
+-- -- subtypeEquiv : {A : Type} {P Q : A → Type}
+-- --   → (∀ a → isProp (P a)) → (∀ a → isProp (Q a))
+-- --   → (∀ {a} → P a → Q a) → (∀ {a} → Q a → P a)
+-- --   → Σ A P ≃ Σ A Q
+-- -- subtypeEquiv pP pQ P2Q Q2P = Σ-cong-equiv-snd {!!}
+-- --   (λ x → x .fst , P2Q (x .snd)) ,
+-- --   record { equiv-proof = λ y → ((y .fst , Q2P (y .snd)) ,
+-- --                                  Σ≡Prop pQ refl) ,
+-- --                                 λ z → Σ≡Prop {!!} {!!} }  
 
-ωPfin2≃×pℕ : ωPfin2 ≃ ×pℕ u
-ωPfin2≃×pℕ = isoToEquiv ωPfin2-iso-×pℕ
+-- ωPfin2-iso-×pℕ : Iso (ωPfin2) (×pℕ u)
+-- ωPfin2-iso-×pℕ = Σ-cong-iso-snd
+--   λ x → iso (λ p n → uLem (x , p) n ∙ p 0)
+--              (λ q n → uisInjective n _ _ (uLem2 (x , q) n))
+--              (λ _ → isPropΠ (λ _ → isSetωPfin _ _) _ _)
+--              λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _) _ _
 
-Pfin-iso : {A B : Type} → Iso A B → Iso (Pfin A) (Pfin B)
-Pfin-iso AisoB =
-  iso (mapPfin (Iso.fun AisoB))
-      (mapPfin (Iso.inv AisoB))
-      (λ x → mapPfinComp x ∙ (λ i → mapPfin (λ y → Iso.rightInv AisoB y i) x) ∙ mapPfinId x)
-      λ x → mapPfinComp x ∙ (λ i → mapPfin (λ y → Iso.leftInv AisoB y i) x) ∙ mapPfinId x
+-- ωPfin2≃×pℕ : ωPfin2 ≃ ×pℕ u
+-- ωPfin2≃×pℕ = isoToEquiv ωPfin2-iso-×pℕ
 
-Pfin≃ : {A B : Type} → A ≃ B → Pfin A ≃ Pfin B
-Pfin≃ eq = isoToEquiv (Pfin-iso (equivToIso eq))
+-- Pfin-iso : {A B : Type} → Iso A B → Iso (Pfin A) (Pfin B)
+-- Pfin-iso AisoB =
+--   iso (mapPfin (Iso.fun AisoB))
+--       (mapPfin (Iso.inv AisoB))
+--       (λ x → mapPfinComp x ∙ (λ i → mapPfin (λ y → Iso.rightInv AisoB y i) x) ∙ mapPfinId x)
+--       λ x → mapPfinComp x ∙ (λ i → mapPfin (λ y → Iso.leftInv AisoB y i) x) ∙ mapPfinId x
 
--- the limit of the shifted (ω+ω)-chain
-ωPfin2Sh : Type
-ωPfin2Sh = ωLimit (shift iPfin2-ch)
+-- Pfin≃ : {A B : Type} → A ≃ B → Pfin A ≃ Pfin B
+-- Pfin≃ eq = isoToEquiv (Pfin-iso (equivToIso eq))
 
-
-×pℕSh-iso-ωPfin2Sh : Iso (×pℕ (mapPfin ∘ u)) ωPfin2Sh
-×pℕSh-iso-ωPfin2Sh = Σ-cong-iso-snd
-  λ x → iso (λ p n → mapPfinInj (u n) (uisInjective n) _ _ (mapPfinComp (x (suc n)) ∙ lem x p n))
-             (λ p n → lem2 x (λ n → sym (mapPfinComp (x (suc n))) ∙ cong (mapPfin (u n)) (p n)) n)
-             (λ _ → isPropΠ (λ _ → trunc _ _) _ _)
-             λ _ → isPropΠ (λ _ → trunc _ _) _ _
-  where
-    lem : (x : ∀ n → Pfin (iPfin2 n))
-      → (∀ n → mapPfin (u (suc n)) (x (suc n)) ≡ mapPfin (u 0) (x 0))
-      → ∀ n → mapPfin (u (suc n)) (x (suc n)) ≡ mapPfin (u n) (x n)
-    lem x p zero = p 0
-    lem x p (suc n) = p (suc n) ∙ sym (p n) 
-
-    lem2 : (x : ∀ n → Pfin (iPfin2 n))
-      → (∀ n → mapPfin (u (suc n)) (x (suc n)) ≡ mapPfin (u n) (x n))
-      → ∀ n → mapPfin (u (suc n)) (x (suc n)) ≡ mapPfin (u 0) (x 0)
-    lem2 x p zero = p 0
-    lem2 x p (suc n) = p (suc n) ∙ lem2 x p n
+-- -- the limit of the shifted (ω+ω)-chain
+-- ωPfin2Sh : Type
+-- ωPfin2Sh = ωLimit (shift iPfin2-ch)
 
 
--- ×pℕshift-iso : Iso (×pℕ (mapPfin ∘ u)) (×pℕ u)
--- ×pℕshift-iso =
---   iso (λ x → {!x .fst !} , {!!})
---       (λ x → x .fst ∘ suc , λ n → {!x .snd (suc n)!})
---       {!!}
---       {!!}
+-- ×pℕSh-iso-ωPfin2Sh : Iso (×pℕ (mapPfin ∘ u)) ωPfin2Sh
+-- ×pℕSh-iso-ωPfin2Sh = Σ-cong-iso-snd
+--   λ x → iso (λ p n → mapPfinInj (u n) (uisInjective n) _ _ (mapPfinComp (x (suc n)) ∙ lem x p n))
+--              (λ p n → lem2 x (λ n → sym (mapPfinComp (x (suc n))) ∙ cong (mapPfin (u n)) (p n)) n)
+--              (λ _ → isPropΠ (λ _ → trunc _ _) _ _)
+--              λ _ → isPropΠ (λ _ → trunc _ _) _ _
+--   where
+--     lem : (x : ∀ n → Pfin (iPfin2 n))
+--       → (∀ n → mapPfin (u (suc n)) (x (suc n)) ≡ mapPfin (u 0) (x 0))
+--       → ∀ n → mapPfin (u (suc n)) (x (suc n)) ≡ mapPfin (u n) (x n)
+--     lem x p zero = p 0
+--     lem x p (suc n) = p (suc n) ∙ sym (p n) 
+
+--     lem2 : (x : ∀ n → Pfin (iPfin2 n))
+--       → (∀ n → mapPfin (u (suc n)) (x (suc n)) ≡ mapPfin (u n) (x n))
+--       → ∀ n → mapPfin (u (suc n)) (x (suc n)) ≡ mapPfin (u 0) (x 0)
+--     lem2 x p zero = p 0
+--     lem2 x p (suc n) = p (suc n) ∙ lem2 x p n
+
+
+-- -- ×pℕshift-iso : Iso (×pℕ (mapPfin ∘ u)) (×pℕ u)
+-- -- ×pℕshift-iso =
+-- --   iso (λ x → {!x .fst !} , {!!})
+-- --       (λ x → x .fst ∘ suc , λ n → {!x .snd (suc n)!})
+-- --       {!!}
+-- --       {!!}
 
 
 
-×pℕSh≃ωPfin2Sh : ×pℕ (mapPfin ∘ u) ≃ ωPfin2Sh
-×pℕSh≃ωPfin2Sh = isoToEquiv ×pℕSh-iso-ωPfin2Sh
+-- ×pℕSh≃ωPfin2Sh : ×pℕ (mapPfin ∘ u) ≃ ωPfin2Sh
+-- ×pℕSh≃ωPfin2Sh = isoToEquiv ×pℕSh-iso-ωPfin2Sh
 
-ωPfin22Sh≃ωPfin2 : ωPfin2Sh ≃ ωPfin2
-ωPfin22Sh≃ωPfin2 = invEquiv (shift≃ iPfin2-ch isSetiPfin2)
+-- ωPfin22Sh≃ωPfin2 : ωPfin2Sh ≃ ωPfin2
+-- ωPfin22Sh≃ωPfin2 = invEquiv (shift≃ iPfin2-ch isSetiPfin2)
 
-τ-equiv : Pfin ωPfin2 ≃ ωPfin2
-τ-equiv =
-  compEquiv (Pfin≃ ωPfin2≃×pℕ)
-    (compEquiv (Pfin×pℕ {!!} (λ _ → trunc) isSetωPfin u (λ n → uisInjective (suc n)))
-      (compEquiv ×pℕSh≃ωPfin2Sh ωPfin22Sh≃ωPfin2))
+-- τ-equiv : Pfin ωPfin2 ≃ ωPfin2
+-- τ-equiv =
+--   compEquiv (Pfin≃ ωPfin2≃×pℕ)
+--     (compEquiv (Pfin×pℕ {!!} (λ _ → trunc) isSetωPfin u (λ n → uisInjective (suc n)))
+--       (compEquiv ×pℕSh≃ωPfin2Sh ωPfin22Sh≃ωPfin2))
 
-ConePfinωPfin2 : Cone iPfin2-ch (Pfin ωPfin2)
-ConePfinωPfin2 =
-  (λ n x → iMapPfin2 n (mapPfin (proj iPfin2-ch n) x)) ,
-  λ n x → cong (iMapPfin2 n)
-    (mapPfinComp x ∙ cong (λ f → mapPfin f x)
-      (funExt (λ y → y .snd n)))
+-- ConePfinωPfin2 : Cone iPfin2-ch (Pfin ωPfin2)
+-- ConePfinωPfin2 =
+--   (λ n x → iMapPfin2 n (mapPfin (proj iPfin2-ch n) x)) ,
+--   λ n x → cong (iMapPfin2 n)
+--     (mapPfinComp x ∙ cong (λ f → mapPfin f x)
+--       (funExt (λ y → y .snd n)))
 
-τ-1 : Pfin ωPfin2 → ωPfin2
-τ-1 = Iso.inv (AdjLim iPfin2-ch _) ConePfinωPfin2
+-- τ-1 : Pfin ωPfin2 → ωPfin2
+-- τ-1 = Iso.inv (AdjLim iPfin2-ch _) ConePfinωPfin2
 
-τ : ωPfin2 → Pfin ωPfin2
-τ = invEq τ-equiv
+-- τ : ωPfin2 → Pfin ωPfin2
+-- τ = invEq τ-equiv
 
-τ-1≡ : τ-1 ≡ equivFun τ-equiv
-τ-1≡ = funExt (λ x → Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _))
-  (funExt (λ n → cong (iMapPfin2 n) (sym (mapPfinComp x)))))
+-- τ-1≡ : τ-1 ≡ equivFun τ-equiv
+-- τ-1≡ = funExt (λ x → Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _))
+--   (funExt (λ n → cong (iMapPfin2 n) (sym (mapPfinComp x)))))
 
-module Finality (A : Type) (α : A → Pfin A)
-                (αsim : A → ωPfin2) 
-                (αsim-mor : ∀ a → τ (αsim a) ≡ mapPfin αsim (α a)) where
+-- module Finality (A : Type) (α : A → Pfin A)
+--                 (αsim : A → ωPfin2) 
+--                 (αsim-mor : ∀ a → τ (αsim a) ≡ mapPfin αsim (α a)) where
 
-  pα : ∀ n (a : A) → iPfin n
-  pα zero a = tt
-  pα (suc n) a = mapPfin (pα n) (α a)
+--   pα : ∀ n (a : A) → iPfin n
+--   pα zero a = tt
+--   pα (suc n) a = mapPfin (pα n) (α a)
 
-  pα-res : ∀ n (a : A) → iMapPfin n (mapPfin (pα n) (α a)) ≡ pα n a
-  pα-res zero a = refl
-  pα-res (suc n) a = mapPfinComp (α a) ∙ cong (λ f → mapPfin f (α a)) (funExt (pα-res n))
+--   pα-res : ∀ n (a : A) → iMapPfin n (mapPfin (pα n) (α a)) ≡ pα n a
+--   pα-res zero a = refl
+--   pα-res (suc n) a = mapPfinComp (α a) ∙ cong (λ f → mapPfin f (α a)) (funExt (pα-res n))
 
-  pα2 : ∀ n (a : A) → iPfin2 n
-  pα2 zero a = (λ n → pα n a) , λ n → pα-res n a 
-  pα2 (suc n) a = mapPfin (pα2 n) (α a)
+--   pα2 : ∀ n (a : A) → iPfin2 n
+--   pα2 zero a = (λ n → pα n a) , λ n → pα-res n a 
+--   pα2 (suc n) a = mapPfin (pα2 n) (α a)
 
-  pα2-res : ∀ n (a : A) → iMapPfin2 n (mapPfin (pα2 n) (α a)) ≡ pα2 n a
-  pα2-res zero a = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin  _ _ _))
-    (funExt (λ n → cong (iMapPfin n) (mapPfinComp (α a)) ∙ pα-res n a))
-  pα2-res (suc n) a = mapPfinComp (α a) ∙ cong (λ f → mapPfin f (α a)) (funExt (pα2-res n))
+--   pα2-res : ∀ n (a : A) → iMapPfin2 n (mapPfin (pα2 n) (α a)) ≡ pα2 n a
+--   pα2-res zero a = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin  _ _ _))
+--     (funExt (λ n → cong (iMapPfin n) (mapPfinComp (α a)) ∙ pα-res n a))
+--   pα2-res (suc n) a = mapPfinComp (α a) ∙ cong (λ f → mapPfin f (α a)) (funExt (pα2-res n))
 
-  coneA : Cone iPfin2-ch A
-  coneA = pα2 , pα2-res
+--   coneA : Cone iPfin2-ch A
+--   coneA = pα2 , pα2-res
 
-  αbar : A → ωPfin2
-  αbar = Iso.inv (AdjLim iPfin2-ch _) coneA
+--   αbar : A → ωPfin2
+--   αbar = Iso.inv (AdjLim iPfin2-ch _) coneA
 
-  αbar-mor' : ∀ a → αbar a ≡ τ-1 (mapPfin αbar (α a))
-  αbar-mor' a = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _))
-    (funExt (λ n → sym (cong (iMapPfin2 n) (mapPfinComp (α a)) ∙ pα2-res n a)))
+--   αbar-mor' : ∀ a → αbar a ≡ τ-1 (mapPfin αbar (α a))
+--   αbar-mor' a = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _))
+--     (funExt (λ n → sym (cong (iMapPfin2 n) (mapPfinComp (α a)) ∙ pα2-res n a)))
 
-  αbar-mor : ∀ a → τ (αbar a) ≡ mapPfin αbar (α a)
-  αbar-mor a =
-      τ (αbar a)
-    ≡⟨ (λ i → τ (αbar-mor' a i)) ⟩
-      τ (τ-1 (mapPfin αbar (α a)))
-    ≡⟨ (λ i → τ (τ-1≡ i (mapPfin αbar (α a)))) ⟩
-      τ (equivFun τ-equiv (mapPfin αbar (α a)))
-    ≡⟨ (λ i → Iso.leftInv (equivToIso τ-equiv) (mapPfin αbar (α a)) i) ⟩
-      mapPfin αbar (α a)
-    ∎
+--   αbar-mor : ∀ a → τ (αbar a) ≡ mapPfin αbar (α a)
+--   αbar-mor a =
+--       τ (αbar a)
+--     ≡⟨ (λ i → τ (αbar-mor' a i)) ⟩
+--       τ (τ-1 (mapPfin αbar (α a)))
+--     ≡⟨ (λ i → τ (τ-1≡ i (mapPfin αbar (α a)))) ⟩
+--       τ (equivFun τ-equiv (mapPfin αbar (α a)))
+--     ≡⟨ (λ i → Iso.leftInv (equivToIso τ-equiv) (mapPfin αbar (α a)) i) ⟩
+--       mapPfin αbar (α a)
+--     ∎
 
-  αsim-mor' : ∀ a → αsim a ≡ τ-1 (mapPfin αsim (α a))
-  αsim-mor' a =
-      αsim a
-    ≡⟨ sym (Iso.rightInv (equivToIso τ-equiv) (αsim a)) ⟩
-      equivFun τ-equiv (τ (αsim a))
-    ≡⟨ (λ i → equivFun τ-equiv (αsim-mor a i) ) ⟩
-      equivFun τ-equiv (mapPfin αsim (α a))
-    ≡⟨ (λ i → τ-1≡ (~ i) (mapPfin αsim (α a))) ⟩
-      τ-1 (mapPfin αsim (α a))
-    ∎
+--   αsim-mor' : ∀ a → αsim a ≡ τ-1 (mapPfin αsim (α a))
+--   αsim-mor' a =
+--       αsim a
+--     ≡⟨ sym (Iso.rightInv (equivToIso τ-equiv) (αsim a)) ⟩
+--       equivFun τ-equiv (τ (αsim a))
+--     ≡⟨ (λ i → equivFun τ-equiv (αsim-mor a i) ) ⟩
+--       equivFun τ-equiv (mapPfin αsim (α a))
+--     ≡⟨ (λ i → τ-1≡ (~ i) (mapPfin αsim (α a))) ⟩
+--       τ-1 (mapPfin αsim (α a))
+--     ∎
 
-  αbar-eq : ∀ a n → αsim a .fst 0 .fst n ≡ pα n a
-  αbar-eq a zero = refl
-  αbar-eq a (suc n) = 
-    funExt⁻ (cong fst (funExt⁻ (cong fst (αsim-mor' a)) 0)) (suc n)
-    ∙ mapPfinComp ((mapPfin (proj iPfin2-ch 0) (mapPfin αsim (α a))))
-    ∙ mapPfinComp (mapPfin αsim (α a))
-    ∙ mapPfinComp (α a)
-    ∙ cong (λ f → mapPfin f (α a)) (funExt (λ x → αsim x .fst 0 .snd n ∙ αbar-eq x n))
+--   αbar-eq : ∀ a n → αsim a .fst 0 .fst n ≡ pα n a
+--   αbar-eq a zero = refl
+--   αbar-eq a (suc n) = 
+--     funExt⁻ (cong fst (funExt⁻ (cong fst (αsim-mor' a)) 0)) (suc n)
+--     ∙ mapPfinComp ((mapPfin (proj iPfin2-ch 0) (mapPfin αsim (α a))))
+--     ∙ mapPfinComp (mapPfin αsim (α a))
+--     ∙ mapPfinComp (α a)
+--     ∙ cong (λ f → mapPfin f (α a)) (funExt (λ x → αsim x .fst 0 .snd n ∙ αbar-eq x n))
 
-  αbar-eq2 : ∀ a n → αsim a .fst n ≡ pα2 n a
-  αbar-eq2 a zero = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _))
-    (funExt (αbar-eq a))
-  αbar-eq2 a (suc n) =
-    funExt⁻ (cong fst (αsim-mor' a)) (suc n)
-    ∙ mapPfinComp (mapPfin αsim (α a))
-    ∙ mapPfinComp (α a)
-    ∙ cong (λ f → mapPfin f (α a)) (funExt (λ x → αsim x .snd n ∙ αbar-eq2 x n))
+--   αbar-eq2 : ∀ a n → αsim a .fst n ≡ pα2 n a
+--   αbar-eq2 a zero = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _))
+--     (funExt (αbar-eq a))
+--   αbar-eq2 a (suc n) =
+--     funExt⁻ (cong fst (αsim-mor' a)) (suc n)
+--     ∙ mapPfinComp (mapPfin αsim (α a))
+--     ∙ mapPfinComp (α a)
+--     ∙ cong (λ f → mapPfin f (α a)) (funExt (λ x → αsim x .snd n ∙ αbar-eq2 x n))
 
-  αbar-uniq : ∀ a → αsim a ≡ αbar a
-  αbar-uniq a = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _))
-    (funExt (αbar-eq2 a))
+--   αbar-uniq : ∀ a → αsim a ≡ αbar a
+--   αbar-uniq a = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _))
+--     (funExt (αbar-eq2 a))
 
