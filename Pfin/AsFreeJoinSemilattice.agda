@@ -13,7 +13,7 @@ open import Cubical.HITs.SetQuotients
   renaming ([_] to eqCl; rec to recQ; rec2 to recQ2)
 open import Cubical.Data.Sigma
 open import Cubical.Data.List
-open import Cubical.Data.Nat
+open import Cubical.Data.Nat renaming (elim to elimNat)
 open import Cubical.Data.Sum renaming (map to map⊎; inl to inj₁; inr to inj₂)
 open import Cubical.Data.Empty renaming (elim to ⊥-elim; rec to ⊥-rec)
 open import Cubical.Relation.Binary
@@ -641,7 +641,7 @@ isSet×pℕ : {A : ℕ → Type} {C : Type}
 isSet×pℕ sA sC f = isSetΣ (isSetΠ sA) λ _ → isProp→isSet (isPropΠ (λ _ → sC _ _))
 
 to×pℕ : {A : ℕ → Type}{C : Type} (f : ∀ n → A n → C) 
-  → Pfin (×pℕ f) → ×pℕ (mapPfin ∘ f)
+  → Pfin (×pℕ {A}{C} f) → ×pℕ {Pfin ∘ A}{Pfin C} (mapPfin ∘ f)
 to×pℕ f s =
   (λ n → mapPfin (λ x → x .fst n) s) ,
   λ n →
@@ -810,7 +810,46 @@ module _ (cc : (P : ℕ → Type) → (∀ n → ∥ P n ∥) → ∥ (∀ n →
                                   (to×pℕEquiv setA setC (f 0) (f ∘ suc) injf (a 0) (a ∘ suc) eq))  })
   
 
+{-
+  module _ {A : ℕ → Type} {C : Type}
+          (sA : ∀ n → isSet (A (suc n))) (sC : isSet C)
+          (f0 : A 0 → C)
+          (f : ∀ n → A (suc n) → C)
+          (injf : ∀ n (x y : A (suc n)) → f n x ≡ f n y → x ≡ y) where
 
+    from×pℕ :
+         (a0 : Pfin (A 0))
+      → (as : ∀ n → Pfin (A (suc n)))
+      → (eq : ∀ n → mapPfin (f n) (as n) ≡ mapPfin f0 a0)
+      → Pfin (×pℕ {A} (funs f0 f)) 
+    from×pℕ a0 as eq = fst (fst (to×pℕEquiv sA sC f0 f injf a0 as eq))
+
+    from×pℕ-ø :
+         (as : ∀ n → Pfin (A (suc n)))
+      → (eq : ∀ n → mapPfin (f n) (as n) ≡ ø)
+      → from×pℕ ø as eq ≡ ø
+    from×pℕ-ø as eq = refl
+
+    from×pℕ-η : (a : A 0)
+         (as : ∀ n → Pfin (A (suc n)))
+      → (eq : ∀ n → mapPfin (f n) (as n) ≡ η (f0 a))
+      → from×pℕ (η a) as eq ≡ η ((λ { zero → a ; (suc n) → mapPfinη (sA n) (f n) (injf n) (as n) (f0 a) (eq n) .fst }) , {!!})
+    from×pℕ-η a as eq = cong η (Σ≡Prop {!!} (funExt (λ { zero → refl ; (suc n) → refl} )))      
+
+    from×pℕ-∪ :
+         (a0 b0 : Pfin (A 0))
+      → (as : ∀ n → Pfin (A (suc n)))
+      → (eq : ∀ n → mapPfin (f n) (as n) ≡ (mapPfin f0 a0 ∪ mapPfin f0 b0))
+      → from×pℕ (a0 ∪ b0) as eq ≡ {!from×pℕ (a0 ∪ b0) as eq!}
+-}
+{-
+  from×pℕ : {A : ℕ → Type}{C : Type} 
+    → (setA : ∀ n → isSet (A (suc n))) (setC : isSet C)
+    → (f : ∀ n → A n → C) 
+    → (injf : ∀ n (x y : A (suc n)) → f (suc n) x ≡ f (suc n) y → x ≡ y)
+    → ×pℕ {Pfin ∘ A}{Pfin C} (mapPfin ∘ f) → Pfin (×pℕ {A}{C} f)
+  from×pℕ sA sC f injf x = {!equivFun (invEquiv (Pfin×pℕ sA sC f injf)) x!}
+-}
 
 {-
 -- A simple counterexample showing that Pfin does not preserve
