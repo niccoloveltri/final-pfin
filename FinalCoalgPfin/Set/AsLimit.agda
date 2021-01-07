@@ -70,13 +70,14 @@ AdjLim (A , r) C = iso
   (λ _ → refl)
   (λ g → funExt (λ _ → refl))
 
-
+{-
 lem-injective-lim2 : ∀{ℓ} (c : ωChain ℓ) (C : Type ℓ)
   → (g : C → ωLimit c)
   → ∀ x y → (∀ n → Iso.fun (AdjLim c C) g .fst n x ≡ Iso.fun (AdjLim c C) g .fst n y)
   → g x ≡ g y
 lem-injective-lim2 c C g x y p =
-  Σ≡Prop {!!} (funExt p)
+  Σ≡Prop (λ _ → isPropΠ λ _ → {!!}) (funExt p)
+-}
 
 lem-injective-lim : ∀{ℓ} (c : ωChain ℓ) (C : Type ℓ)
   → (g : C → ωLimit c)
@@ -115,6 +116,31 @@ shift≃ : ∀{ℓ} (c : ωChain ℓ)
   → (∀ n → isSet (c .Ch n))
   → ωLimit c ≃ ωLimit (shift c)
 shift≃ c cS = isoToEquiv (shift-iso c cS)
+
+≤-suc-cases : ∀ k n → k ≤N suc n
+  → (k ≤N n) ⊎ (k ≡ suc n)
+≤-suc-cases zero n le = inj₁ zero-≤
+≤-suc-cases (suc k) zero le = inj₂ (cong suc (≤0→≡0 (pred-≤-pred le)))
+≤-suc-cases (suc k) (suc n) le with ≤-suc-cases k n (pred-≤-pred le)
+... | inj₁ p = inj₁ (suc-≤-suc p)
+... | inj₂ p = inj₂ (cong suc p)
+
+ires : ∀{ℓ} (c : ωChain ℓ)
+  → ∀ n k → k ≤N n
+  → c .Ch n → c .Ch k
+ires c zero k le y = J (λ k _ → c .Ch k) y (sym (≤0→≡0 le))
+ires c (suc n) k le y with ≤-suc-cases k n le
+... | inj₁ p = ires c n k p (c .res n y)
+... | inj₂ p = J (λ k _ → c .Ch k) y (sym p)
+
+ires-eq : ∀{ℓ} (c : ωChain ℓ) (x : ωLimit c)
+  → ∀ n k (le : k ≤N n)
+  → ires c n k le (x .fst n) ≡ x .fst k
+ires-eq c x zero k le =
+  J (λ k eq → J (λ k _ → c .Ch k) (x .fst 0) eq ≡ x .fst k) (JRefl (λ k _ → c .Ch k) (x .fst 0)) (sym (≤0→≡0 le))
+ires-eq c x (suc n) k le with ≤-suc-cases k n le
+... | inj₁ p = cong (ires c n k p) (x .snd n) ∙ ires-eq c x n k p
+... | inj₂ p = J (λ k eq → J (λ k _ → c .Ch k) (x .fst (suc n)) eq ≡ x .fst k) (JRefl (λ k _ → c .Ch k) (x .fst (suc n))) (sym p)
 
 -- the ω-chain of iterated applications of Pfin to the unit type
 iPfin : ℕ → Type 
@@ -168,13 +194,17 @@ decIsProp propA (yes p) (no ¬p) = ⊥-elim {A = λ _ → yes p ≡ no ¬p} (¬p
 decIsProp propA (no ¬p) (yes p) = ⊥-elim {A = λ _ → no ¬p ≡ yes p} (¬p p)
 decIsProp propA (no ¬p) (no ¬q) = cong no (funExt (λ _ → isProp⊥ _ _))
 
+decPropTrunc : {A : Type} → Dec A → Dec ∥ A ∥ 
+decPropTrunc (yes a) = yes ∣ a ∣
+decPropTrunc (no ¬a) = no (∥rec∥ isProp⊥ ¬a)
+
 dec∈ₛ : {A : Type}
-  → ((x y : A) → Dec ∥ x ≡ y ∥)
+  → ((x y : A) → Dec (x ≡ y))
   → (x : A) (s : Pfin A) → Dec ⟨ x ∈ₛ s ⟩
 dec∈ₛ decEq x = elimPfinProp
   (λ s → _ , decIsProp (snd (x ∈ₛ s)))
   (no λ x → x)
-  (decEq x)
+  (λ a → decPropTrunc (decEq x a)) 
   λ {s1}{s2} → lem {s1}{s2}
   where
     lem : ∀{s1 s2} → Dec ⟨ x ∈ₛ s1 ⟩ → Dec ⟨ x ∈ₛ s2 ⟩
@@ -185,7 +215,7 @@ dec∈ₛ decEq x = elimPfinProp
       (λ { (inj₁ x) → ¬p x ; (inj₂ x) → ¬q x }))
 
 dec⊆ : {A : Type}
-  → ((x y : A) → Dec ∥ x ≡ y ∥)
+  → ((x y : A) → Dec (x ≡ y))
   → (s t : Pfin A) → Dec (s ⊆ t)
 dec⊆ {A} decEq =
   elimPfinProp (λ _ → _ , isPropΠ λ x → isPropDec (isPropΠ (λ y → isPropΠ (λ _ → snd (y ∈ₛ x)))))
@@ -208,7 +238,10 @@ dec⊆ {A} decEq =
 PfinDecEq : {A : Type}
   → ((x y : A) → Dec (x ≡ y))
   → (x y : Pfin A) → Dec (x ≡ y)
-PfinDecEq decEq x y = {!!}
+PfinDecEq decEq x y with dec⊆ decEq x y | dec⊆ decEq y x
+... | yes p | yes q = yes (antisym⊆ p q)
+... | yes p | no ¬q = no (λ eq → ¬q (λ a → subst (λ z → ⟨ a ∈ₛ z ⟩) (sym eq)))
+... | no ¬p | _ = no (λ eq → ¬p (λ a → subst (λ z → ⟨ a ∈ₛ z ⟩) eq))
 
 iPfinDecEq : ∀ n (x y : iPfin n) → Dec (x ≡ y)
 iPfinDecEq zero x y = yes refl
@@ -243,13 +276,6 @@ growingEq (suc (suc n)) =
 growing-ch : ωPfin
 growing-ch = growing , growingEq
 
-≤-suc-cases : ∀ k n → k ≤N suc n
-  → (k ≤N n) ⊎ (k ≡ suc n)
-≤-suc-cases zero n le = inj₁ zero-≤
-≤-suc-cases (suc k) zero le = inj₂ (cong suc (≤0→≡0 (pred-≤-pred le)))
-≤-suc-cases (suc k) (suc n) le with ≤-suc-cases k n (pred-≤-pred le)
-... | inj₁ p = inj₁ (suc-≤-suc p)
-... | inj₂ p = inj₂ (cong suc p)
 
 
 
@@ -669,7 +695,12 @@ isEven? false n = isOdd n
 isEven? true n = isEven n
 
 decEven : ∀ n → isEven n ⊎ isOdd n
-decEven n = {!!}
+decEven zero = inj₁ zero
+decEven (suc n) =
+  rec⊎ (λ z → inj₂ (suc z)) (λ z → inj₁ (suc z)) (decEven n)
+
+even-not-odd : ∀ {n} → isEven n → isOdd n → ⊥
+even-not-odd (suc x₁) (suc x) = even-not-odd x x₁
 
 {-
 decEven : ∀ n → Dec (isEven n)
@@ -1205,32 +1236,188 @@ module FromInjectivity (minj : ∀ s t → m s ≡ m t → s ≡ t) where
             ∙ funExt⁻ (cong fst eqx) (suc n)
 
 
+parity : (a : ℕ → Bool) → Bool → ℕ → Bool
+parity a b zero = (a 0 and b) or (not (a 0) and (not b))
+parity a b (suc n) =
+  if (a 0 and b) or (not (a 0) and (not b))
+    then false
+    else parity (a ∘ suc) (not b) n
 
-module Tonjectivity (complete2 : ∀ x s1 s2 (z : ℕ → ωPfin)
-                      → (∀ n → ⟨ z n ∈ₛ (s1 ∪ s2) ⟩)
-                      → (∀ n → z n .fst n ≡ x .fst n)
-                      → ⟨ x ∈ₛ (s1 ∪ s2) ⟩)
-                    (cc : (P : ℕ → Type) → (∀ n → ∥ P n ∥) → ∥ (∀ n → P n) ∥) where
-                    
-  minj' : ∀ s t 
+parity-prop' : ∀ a b (n1 n2 : ℕ)
+  → parity a b n1 ≡ true → parity a b n2 ≡ true
+  → n1 ≡ n2
+parity-prop' a b zero zero p q = refl
+parity-prop' a b zero (suc n2) p q with a 0
+parity-prop' a false zero (suc n2) p q | false = ⊥-rec (false≢true q) 
+parity-prop' a true zero (suc n2) p q | false = ⊥-rec (false≢true p) 
+parity-prop' a false zero (suc n2) p q | true = ⊥-rec (false≢true p) 
+parity-prop' a true zero (suc n2) p q | true = ⊥-rec (false≢true q) 
+parity-prop' a b (suc n1) zero p q with a 0
+parity-prop' a false (suc n1) zero p q | false = ⊥-rec (false≢true p) 
+parity-prop' a true (suc n1) zero p q | false = ⊥-rec (false≢true q) 
+parity-prop' a false (suc n1) zero p q | true = ⊥-rec (false≢true q) 
+parity-prop' a true (suc n1) zero p q | true = ⊥-rec (false≢true p) 
+parity-prop' a b (suc n1) (suc n2) p q with a 0
+parity-prop' a false (suc n1) (suc n2) p q | false = ⊥-rec (false≢true p) 
+parity-prop' a true (suc n1) (suc n2) p q | false =
+  cong suc (parity-prop' (a ∘ suc) false n1 n2 p q)
+parity-prop' a false (suc n1) (suc n2) p q | true =
+    cong suc (parity-prop' (a ∘ suc) true n1 n2 p q)
+parity-prop' a true (suc n1) (suc n2) p q | true = ⊥-rec (false≢true p)
+
+parity-prop : ∀ a b → isProp (Σ[ n ∈ ℕ ] parity a b n ≡ true)
+parity-prop a b (n1 , eq1) (n2 , eq2) =
+  Σ≡Prop (λ _ → isSetBool _ _) (parity-prop' a b n1 n2 eq1 eq2)
+
+parity-even : (a : ℕ → Bool) 
+  → ∀ n → isEven n
+  → parity a true n ≡ false → a n ≡ true
+  → Σ[ k ∈ ℕ ] Σ[ b ∈ Bool ] isEven? b k × (k < n) × (a k ≡ b) × (parity a true k ≡ true)
+parity-even' : (a : ℕ → Bool) 
+  → ∀ n → isOdd n
+  → parity a false n ≡ false → a n ≡ true
+  → Σ[ k ∈ ℕ ] Σ[ b ∈ Bool ] isEven? b k × (k < n) × (a k ≡ not b) × (parity a false k ≡ true)
+
+parity-even a zero ev eqf eqt =
+  ⊥-rec (true≢false (sym (cong (λ b → b and true or not b and false) eqt) ∙  eqf))
+parity-even a (suc n) (suc ev) eqf eqt with dichotomyBool (a 0)
+... | inj₁ q = 0 , true , zero , suc-≤-suc zero-≤ , q , cong (λ b → b and true or not b and false) q  
+... | inj₂ q with parity-even' (a ∘ suc) n ev (sym (cong (λ b → if b and true or not b and false then false else parity (a ∘ suc) false n) q) ∙ eqf) eqt
+... | k , false , p , le , eq , r = _ , _ , suc p , suc-≤-suc le , eq , cong (λ b → if b and true or not b and false then false else parity (a ∘ suc) false k) q ∙ r
+... | k , true , p , le , eq , r = _  , _ , suc p , suc-≤-suc le , eq , cong (λ b → if b and true or not b and false then false else parity (a ∘ suc) false k) q ∙ r
+
+parity-even' a (suc n) (suc ev) eqf eqt with dichotomyBool (a 0)
+... | inj₂ q = 0 , true , zero , suc-≤-suc zero-≤ , q , cong (λ b → b and false or not b and true) q  
+... | inj₁ q with parity-even (a ∘ suc) n ev (sym (cong (λ b → if b and false or not b and true then false else parity (a ∘ suc) true n) q) ∙ eqf) eqt
+... | k , false , p , le , eq , r = _ , _ , suc p , suc-≤-suc le , eq , cong (λ b → if b and false or not b and true then false else parity (a ∘ suc) true k) q ∙ r
+... | k , true , p , le , eq , r = _ , _ , suc p , suc-≤-suc le , eq , cong (λ b → if b and false or not b and true then false else parity (a ∘ suc) true k) q ∙ r
+
+parity-odd : (a : ℕ → Bool) 
+  → ∀ n → isOdd n
+  → parity a true n ≡ false → a n ≡ false
+  → Σ[ k ∈ ℕ ] Σ[ b ∈ Bool ] isEven? b k × (k < n) × (a k ≡ b) × (parity a true k ≡ true)
+parity-odd' : (a : ℕ → Bool) 
+  → ∀ n → isEven n
+  → parity a false n ≡ false → a n ≡ false
+  → Σ[ k ∈ ℕ ] Σ[ b ∈ Bool ] isEven? b k × (k < n) × (a k ≡ not b) × (parity a false k ≡ true)
+
+parity-odd a (suc n) (suc odd) eqt eqf with dichotomyBool (a 0)
+... | inj₁ q = 0 , true , zero , suc-≤-suc zero-≤ , q , cong (λ b → b and true or not b and false) q
+... | inj₂ q with parity-odd' (a ∘ suc) n odd ((sym (cong (λ b → if b and true or not b and false then false else parity (a ∘ suc) false n) q) ∙ eqt)) eqf
+... | k , false , p , le , eq , r = _ , _ , suc p , suc-≤-suc le , eq , cong (λ b → if b and true or not b and false then false else parity (a ∘ suc) false k) q ∙ r
+... | k , true , p , le , eq , r = _ , _ , suc p , suc-≤-suc le , eq , cong (λ b → if b and true or not b and false then false else parity (a ∘ suc) false k) q ∙ r
+
+parity-odd' a zero zero eqt eqf =
+  ⊥-rec (true≢false (sym (cong (λ b → b and false or not b and true) eqf) ∙ eqt))
+parity-odd' a (suc n) (suc odd) eqt eqf with dichotomyBool (a 0)
+... | inj₂ q = 0 , true , zero , suc-≤-suc zero-≤ , q , cong (λ b → b and false or not b and true) q
+... | inj₁ q with parity-odd (a ∘ suc) n odd ((sym (cong (λ b → if b and false or not b and true then false else parity (a ∘ suc) true n) q) ∙ eqt)) eqf
+... | k , false , p , le , eq , r = _ , _ , suc p , suc-≤-suc le , eq , cong (λ b → if b and false or not b and true then false else parity (a ∘ suc) true k) q ∙ r
+... | k , true , p , le , eq , r = _ , _ , suc p , suc-≤-suc le , eq , cong (λ b → if b and false or not b and true then false else parity (a ∘ suc) true k) q ∙ r
+
+
+{-
+parity-even : (a : ℕ → Bool) (b : Bool)
+  → ∀ n → isEven? b n
+  → parity a b n ≡ false → a n ≡ true
+  → Σ[ k ∈ ℕ ] Σ[ b' ∈ Bool ] (k < n) × (a k ≡ b' or b)
+parity-even a true zero ev eqf eqt =
+  ⊥-rec (true≢false (sym (cong (λ b → b and true or not b and false) eqt) ∙  eqf))
+parity-even a b (suc n) ev eqf eqt with dichotomyBool (a 0)
+parity-even a b (suc n) ev eqf eqt | inj₁ p = 0 , true , suc-≤-suc zero-≤ , {!!}
+parity-even a false (suc n) (suc ev) eqf eqt | inj₂ p = {!!}
+--  ⊥-rec (false≢true (sym (cong (λ b → if b and false or not b and true then false else parity (a ∘ suc) true n) p) ∙ eqf))
+parity-even a true (suc n) (suc ev) eqf eqt | inj₂ p with parity-even (a ∘ suc) false n ev {!!} eqt
+... | ih = {!!}
+-}
+
+-- parity-even a true p zero ev with p 0 zero
+-- ... | q with a 0
+-- ... | false = refl
+-- ... | true = ⊥-rec (true≢false q)
+-- parity-even a b p (suc n) ev with dichotomyBool (a 0)
+-- parity-even a false p (suc n) (suc ev) | inj₁ q =
+--   parity-even (a ∘ suc) true (λ k r → {!p (suc k) (suc r)!}) n ev
+-- parity-even a true p (suc n) (suc ev) | inj₁ q = {!!}
+-- parity-even a false p (suc n) (suc ev) | inj₂ q = {!!}
+-- parity-even a true p (suc n) (suc ev) | inj₂ q = {!!}
+
+
+{-
+parity-even2 : (a : ℕ → Bool) (b : Bool)
+  → ((n : ℕ) → isEven? b n → a n ≡ false)
+  → ∀ n → isEven? b n → parity a b n ≡ false
+parity-even2 a true p zero ev with dichotomyBool (a 0)
+parity-even2 a true p zero ev | inj₁ q = ⊥-rec (false≢true (sym (p 0 zero) ∙ q))
+parity-even2 a true p zero ev | inj₂ q = cong (λ b → b and true or not b and false) q
+parity-even2 a b p (suc n) ev with dichotomyBool (a 0)
+parity-even2 a false p (suc n) (suc ev) | inj₁ x =
+  cong (λ b → if b and false or not b and true then false else parity (a ∘ suc) true n) x
+  ∙ parity-even2 (a ∘ suc) true (λ n r → p (suc n) (suc r)) n ev
+parity-even2 a false p (suc n) (suc ev) | inj₂ x = 
+  cong (λ b → if b and false or not b and true then false else parity (a ∘ suc) true n) x
+parity-even2 a true p (suc n) ev | inj₁ x = ⊥-rec (false≢true (sym (p 0 zero) ∙ x))
+parity-even2 a true p (suc n) (suc ev) | inj₂ x = 
+  cong (λ b → if b and true or not b and false then false else parity (a ∘ suc) false n) x
+  ∙ parity-even2 (a ∘ suc) false (λ n r → p (suc n) (suc r)) n ev
+-}
+
+module ToInjective (llpo : (a : ℕ → Bool) → isProp (Σ[ n ∈ ℕ ] a n ≡ true)
+                        → ∥ (∀ n → isEven n → a n ≡ false) ⊎ (∀ n → isOdd n → a n ≡ false) ∥)
+                  (cc : (P : ℕ → Type) → (∀ n → ∥ P n ∥) → ∥ (∀ n → P n) ∥) where
+
+{-
+  complete : ∀ x s (z : ℕ → ωPfin)
+    → (∀ n → ⟨ z n ∈ₛ s ⟩)
+    → (∀ n → z n .fst n ≡ x .fst n)
+    → ⟨ x ∈ₛ s ⟩
+  complete x =
+    elimPfinProp
+      {!!} 
+      (λ z p q → p 0)
+      (λ y z p q →
+        ∥map∥
+          (λ p → Σ≡Prop {!!}
+            (funExt (λ n → sym (q n) ∙ funExt⁻ (cong fst (p n)) n)))
+          (cc _ p))
+      λ {s}{t} ihs iht z p q → ∥map∥ (λ p → lem {s}{t} ihs iht z p q) (cc _ p) 
+    where
+      lem : {s t : Pfin ωPfin}
+        → (ihs : (z : ℕ → ωPfin) → (∀ n → ⟨ z n ∈ₛ s ⟩) → (∀ n → z n .fst n ≡ x .fst n) → ⟨ x ∈ₛ s ⟩)
+        → (iht : (z : ℕ → ωPfin) → (∀ n → ⟨ z n ∈ₛ t ⟩) → (∀ n → z n .fst n ≡ x .fst n) → ⟨ x ∈ₛ t ⟩)
+        → (z : ℕ → ωPfin) → (∀ n → ⟨ z n ∈ₛ s ⟩ ⊎ ⟨ z n ∈ₛ t ⟩) → (∀ n → z n .fst n ≡ x .fst n)
+        → ⟨ x ∈ₛ s ⟩ ⊎ ⟨ x ∈ₛ t ⟩
+      lem {s}{t} ihs iht z p q = {!!}
+        where
+          a : ℕ → Bool
+          a n = rec⊎ (λ _ → true) (λ _ → false) (p n)
+
+          par : ℕ → Bool
+          par = parity a true
+
+          magic : ∥ ((n : ℕ) → isEven n → par n ≡ false) ⊎
+                    ((n : ℕ) → isOdd n → par n ≡ false) ∥
+          magic = llpo par (parity-prop _ true)
+
+          case1 : (∀ n → isEven n → par n ≡ false)
+            → ∀ n → isEven n → (mn : ⟨ z n ∈ₛ s ⟩) → p n ≡ inj₁ mn → ⊥
+          case1 r n ev mn eq with parity-even a n ev (r n ev) (cong (rec⊎ _ _) eq)
+          ... | k , true , evk , le , c , eqp = false≢true (sym (r k evk) ∙ eqp)
+          ... | k , false , evk , le , c , eqp with p k
+          ... | inj₁ x = true≢false c
+          ... | inj₂ mk = {!mn!}
+-}
+
+  minj-lem3 : ∀ s t 
     → m s ≡ m t
     → ∀ n → mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) s
                      ≡ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) t
-  minj' s t eq n =
+  minj-lem3 s t eq n =
     cong (λ f → mapPfin f s) (funExt (λ x → sym (x .snd n)))
     ∙ sym (mapPfinComp s)
     ∙ funExt⁻ (cong fst eq) (suc n)
     ∙ mapPfinComp t
     ∙ cong (λ f → mapPfin f t) (funExt (λ x → x .snd n))
-
-  minj-lem3 : ∀ (x : ωPfin) t
-    → (∀ n → ⟨ x .fst n ∈ₛ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) t ⟩)
-    → ∃[ z ∈ (ℕ → ωPfin) ] (∀ n → ⟨ z n ∈ₛ t ⟩  × (z n .fst n ≡ x .fst n))
-  minj-lem3 x t p = ∥map∥ (λ f → (λ n → f n .fst) , λ n → f n .snd .fst , f n .snd .snd) (cc _ lem)
-    where
-      lem : ∀ n → ∃[ z ∈ ωPfin ] ⟨ z ∈ₛ t ⟩  × (z .fst n ≡ x .fst n)
-      lem n = pre∈ₛmapPfin _ _ t (p n)
-
 
   minj-lem2 : ∀ x t
     → (∀ n → ⟨ x .fst n ∈ₛ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) t ⟩)
@@ -1238,9 +1425,120 @@ module Tonjectivity (complete2 : ∀ x s1 s2 (z : ℕ → ωPfin)
   minj-lem2 x = elimPfinProp (λ t → _ , isPropΠ (λ _ → snd (x ∈ₛ t)))
     (λ p → p 0)
     (λ a p → ∥map∥ (λ q → Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _)) (funExt q)) (cc _ p))
-    λ {s1}{s2} ih1 ih2 p → ∥rec∥ propTruncIsProp
-      (λ { (z , q) → complete2 x s1 s2 z (λ n → q n .fst) (λ n → q n .snd) })
-      (minj-lem3 x (s1 ∪ s2) p) 
+    λ {s1}{s2} ih1 ih2 p → ∥rec∥ propTruncIsProp (lem s1 s2 ih1 ih2) (cc _ p)
+    where
+      lem : (s1 s2 : Pfin ωPfin)
+        → ((∀ n → ⟨ x .fst n ∈ₛ mapPfin (λ x → x .fst n) s1 ⟩) → ⟨ x ∈ₛ s1 ⟩)
+        → ((∀ n → ⟨ x .fst n ∈ₛ mapPfin (λ x → x .fst n) s2 ⟩) → ⟨ x ∈ₛ s2 ⟩)
+        → (∀ n → ⟨ x .fst n ∈ₛ mapPfin (λ x → x .fst n) s1 ⟩ ⊎ ⟨ x .fst n ∈ₛ mapPfin (λ x → x .fst n) s2 ⟩)
+        → ∥ ⟨ x ∈ₛ s1 ⟩ ⊎ ⟨ x ∈ₛ s2 ⟩ ∥
+      lem s1 s2 ih1 ih2 p =
+        ∥map∥ (map⊎ (ih1 ∘ case-even-gen) (ih2 ∘ case-odd-gen)) magic
+        where
+          a : ℕ → Bool
+          a n with decEven n
+          ... | inj₁ ev = not (Dec→Bool (dec∈ₛ (iPfinDecEq n) (x .fst n) (mapPfin (λ x → x .fst n) s1)))
+          ... | inj₂ odd = Dec→Bool (dec∈ₛ (iPfinDecEq n) (x .fst n) (mapPfin (λ x → x .fst n) s2))
+
+          par : ℕ → Bool
+          par = parity a true
+
+          magic : ∥ ((n : ℕ) → isEven n → par n ≡ false) ⊎
+                    ((n : ℕ) → isOdd n → par n ≡ false) ∥
+          magic = llpo par (parity-prop _ true)
+
+          a-even : ∀ n → isEven n
+            → (⟨ x .fst n ∈ₛ mapPfin (λ x → x .fst n) s1 ⟩ → ⊥) 
+            → a n ≡ true
+          a-even n ev mn with decEven n
+          ... | inj₂ odd = ⊥-rec (even-not-odd ev odd)
+          ... | inj₁ _ with dec∈ₛ (iPfinDecEq n) (x .fst n) (mapPfin (λ x₂ → x₂ .fst n) s1)
+          ... | yes q = ⊥-rec (mn q)
+          ... | no ¬q = refl
+
+          a-odd : ∀ n → isOdd n
+            → (⟨ x .fst n ∈ₛ mapPfin (λ x → x .fst n) s2 ⟩ → ⊥) 
+            → a n ≡ false
+          a-odd n odd mn with decEven n
+          ... | inj₁ x = ⊥-rec (even-not-odd x odd)
+          ... | inj₂ q with dec∈ₛ (iPfinDecEq n) (x .fst n) (mapPfin (λ x₂ → x₂ .fst n) s2)
+          ... | yes p = ⊥-rec (mn p)
+          ... | no ¬p = refl
+
+          ¬¬case-even : (∀ n → isEven n → par n ≡ false)
+            → ∀ n → isEven n → (⟨ x .fst n ∈ₛ mapPfin (λ x → x .fst n) s1 ⟩ → ⊥) → ⊥
+          ¬¬case-even r n evn ¬mn with parity-even a n evn (r n evn) (a-even n evn ¬mn)
+          ... | k , true , evk , le , c , eqk = false≢true (sym (r k evk) ∙ eqk)
+          ... | k , false , oddk , le , c , eqk with decEven k
+          ... | inj₁ evk = ⊥-rec (even-not-odd evk oddk)
+          ... | inj₂ _ with dec∈ₛ (iPfinDecEq k) (x .fst k) (mapPfin (λ n₁ → n₁ .fst k) s2)
+          ... | yes mk = ⊥-rec (true≢false c)
+          ... | no ¬mk with p n
+          ... | inj₁ mn = ¬mn mn
+          ... | inj₂ mn = ¬mk
+            (∥rec∥ (snd (x .fst k ∈ₛ mapPfin (λ x → x .fst k) s2))
+               (λ { (y , my , eqy) →
+                 subst (λ z → ⟨ z ∈ₛ mapPfin (λ x → x .fst k) s2 ⟩)
+                      (sym (ires-eq iPfin-ch y n k (<-weaken le))
+                       ∙ cong (ires iPfin-ch n k (<-weaken le)) eqy
+                       ∙ ires-eq iPfin-ch x n k (<-weaken le))
+                      (∈ₛmapPfin _ _ s2 my) } )
+               (pre∈ₛmapPfin _ _ s2 mn))
+
+
+          ¬¬case-odd : (∀ n → isOdd n → par n ≡ false)
+            → ∀ n → isOdd n → (⟨ x .fst n ∈ₛ mapPfin (λ x → x .fst n) s2 ⟩ → ⊥) → ⊥
+          ¬¬case-odd r n oddn ¬mn with parity-odd a n oddn (r n oddn) (a-odd n oddn ¬mn)
+          ... | k , false , oddk , le , c , eqk = false≢true (sym (r k oddk) ∙ eqk)
+          ... | k , true , evk , le , c , eqk with decEven k
+          ... | inj₂ oddk = ⊥-rec (even-not-odd evk oddk)
+          ... | inj₁ _ with dec∈ₛ (iPfinDecEq k) (x .fst k) (mapPfin (λ n₁ → n₁ .fst k) s1)
+          ... | yes mk = ⊥-rec (false≢true c)
+          ... | no ¬mk with p n
+          ... | inj₂ mn = ¬mn mn
+          ... | inj₁ mn = ¬mk 
+            (∥rec∥ (snd (x .fst k ∈ₛ mapPfin (λ x → x .fst k) s1))
+               (λ { (y , my , eqy) →
+                 subst (λ z → ⟨ z ∈ₛ mapPfin (λ x → x .fst k) s1 ⟩)
+                       (sym (ires-eq iPfin-ch y n k (<-weaken le))
+                        ∙ cong (ires iPfin-ch n k (<-weaken le)) eqy
+                        ∙ ires-eq iPfin-ch x n k (<-weaken le))
+                       (∈ₛmapPfin _ _ s1 my) } )
+               (pre∈ₛmapPfin _ _ s1 mn))
+
+          case-even : (∀ n → isEven n → par n ≡ false)
+            → ∀ n → isEven n → ⟨ x .fst n ∈ₛ mapPfin (λ x → x .fst n) s1 ⟩
+          case-even r n ev with dec∈ₛ (iPfinDecEq n) (x .fst n) (mapPfin (λ n₁ → n₁ .fst n) s1)
+          ... | yes p = p
+          ... | no ¬p = ⊥-rec (¬¬case-even r n ev ¬p)
+
+          case-even-gen : (∀ n → isEven n → par n ≡ false)
+            → ∀ n → ⟨ x .fst n ∈ₛ mapPfin (λ x → x .fst n) s1 ⟩
+          case-even-gen r n with decEven n
+          ... | inj₁ ev = case-even r n ev
+          ... | inj₂ odd = ∥rec∥ (snd (x .fst n ∈ₛ mapPfin (λ x → x .fst n) s1))
+            (λ { (y , my , eqy) →
+              subst (λ z → ⟨ z ∈ₛ mapPfin (λ x → x .fst n) s1 ⟩)
+                    (sym (y .snd n) ∙ cong (iMapPfin n) eqy ∙ x .snd n)
+                    (∈ₛmapPfin _ _ s1 my) })
+            (pre∈ₛmapPfin _ _ s1 (case-even r (suc n) (suc odd)))
+
+          case-odd : (∀ n → isOdd n → par n ≡ false)
+            → ∀ n → isOdd n → ⟨ x .fst n ∈ₛ mapPfin (λ x → x .fst n) s2 ⟩
+          case-odd r n ev with dec∈ₛ (iPfinDecEq n) (x .fst n) (mapPfin (λ n₁ → n₁ .fst n) s2)
+          ... | yes p = p
+          ... | no ¬p = ⊥-rec (¬¬case-odd r n ev ¬p)
+
+          case-odd-gen : (∀ n → isOdd n → par n ≡ false)
+            → ∀ n → ⟨ x .fst n ∈ₛ mapPfin (λ x → x .fst n) s2 ⟩
+          case-odd-gen r n with decEven n
+          ... | inj₂ odd = case-odd r n odd
+          ... | inj₁ ev = ∥rec∥ (snd (x .fst n ∈ₛ mapPfin (λ x → x .fst n) s2))
+            (λ { (y , my , eqy) →
+              subst (λ z → ⟨ z ∈ₛ mapPfin (λ x → x .fst n) s2 ⟩)
+                    (sym (y .snd n) ∙ cong (iMapPfin n) eqy ∙ x .snd n)
+                    (∈ₛmapPfin _ _ s2 my) })
+            (pre∈ₛmapPfin _ _ s2 (case-odd r (suc n) (suc ev)))
 
   minj-lem : ∀ s t
     → (∀ n → mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) s
@@ -1253,600 +1551,661 @@ module Tonjectivity (complete2 : ∀ x s1 s2 (z : ℕ → ωPfin)
       (λ { (inj₁ mx) → ih1 t (λ n y my → p n y (inl my)) x mx
          ; (inj₂ mx) → ih2 t (λ n y my → p n y (inr my)) x mx }))
 
+
   minj : ∀ s t → m s ≡ m t → s ≡ t
   minj s t eq =
-    antisym⊆ (minj-lem s t (λ n → subst (mapPfin (λ x → x .fst n) s ⊆_) (minj' s t eq n) (λ _ mx → mx)))
-             (minj-lem t s (λ n → subst (mapPfin (λ x → x .fst n) t ⊆_) (minj' t s (sym eq) n) (λ _ mx → mx)))
+    antisym⊆ (minj-lem s t (λ n → subst (mapPfin (λ x → x .fst n) s ⊆_) (minj-lem3 s t eq n) (λ _ mx → mx)))
+             (minj-lem t s (λ n → subst (mapPfin (λ x → x .fst n) t ⊆_) (minj-lem3 t s (sym eq) n) (λ _ mx → mx)))
+
+          --with parity-even a n ev (r n ev) (cong (rec⊎ _ _) eq)
+          --... | k , true , evk , le , c , eqp = {!!} -- false≢true (sym (r k evk) ∙ eqp)
+          --... | k , false , evk , le , c , eqp = ?
+--          with p k
+--          ... | inj₁ x = true≢false c
+--          ... | inj₂ mk = {!mk!} 
+
+-- module ToInjectivity (complete2 : ∀ x s1 s2 (z : ℕ → ωPfin)
+--                        → (∀ n → ⟨ z n ∈ₛ (s1 ∪ s2) ⟩)
+--                        → (∀ n → z n .fst n ≡ x .fst n)
+--                        → ⟨ x ∈ₛ (s1 ∪ s2) ⟩)
+--                      (cc : (P : ℕ → Type) → (∀ n → ∥ P n ∥) → ∥ (∀ n → P n) ∥) where
+                    
+--   minj' : ∀ s t 
+--     → m s ≡ m t
+--     → ∀ n → mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) s
+--                      ≡ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) t
+--   minj' s t eq n =
+--     cong (λ f → mapPfin f s) (funExt (λ x → sym (x .snd n)))
+--     ∙ sym (mapPfinComp s)
+--     ∙ funExt⁻ (cong fst eq) (suc n)
+--     ∙ mapPfinComp t
+--     ∙ cong (λ f → mapPfin f t) (funExt (λ x → x .snd n))
+
+--   minj-lem3 : ∀ (x : ωPfin) t
+--     → (∀ n → ⟨ x .fst n ∈ₛ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) t ⟩)
+--     → ∃[ z ∈ (ℕ → ωPfin) ] (∀ n → ⟨ z n ∈ₛ t ⟩  × (z n .fst n ≡ x .fst n))
+--   minj-lem3 x t p = ∥map∥ (λ f → (λ n → f n .fst) , λ n → f n .snd .fst , f n .snd .snd) (cc _ lem)
+--     where
+--       lem : ∀ n → ∃[ z ∈ ωPfin ] ⟨ z ∈ₛ t ⟩  × (z .fst n ≡ x .fst n)
+--       lem n = pre∈ₛmapPfin _ _ t (p n)
+
+
+--   minj-lem2 : ∀ x t
+--     → (∀ n → ⟨ x .fst n ∈ₛ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) t ⟩)
+--     → ⟨ x ∈ₛ t ⟩
+--   minj-lem2 x = elimPfinProp (λ t → _ , isPropΠ (λ _ → snd (x ∈ₛ t)))
+--     (λ p → p 0)
+--     (λ a p → ∥map∥ (λ q → Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _)) (funExt q)) (cc _ p))
+--     λ {s1}{s2} ih1 ih2 p → ∥rec∥ propTruncIsProp
+--       (λ { (z , q) → complete2 x s1 s2 z (λ n → q n .fst) (λ n → q n .snd) })
+--       (minj-lem3 x (s1 ∪ s2) p) 
+
+--   minj-lem : ∀ s t
+--     → (∀ n → mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) s
+--                      ⊆ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) t)
+--     → s ⊆ t
+--   minj-lem = elimPfinProp (λ _ → _ , isPropΠ (λ t → isPropΠ (λ _ → isPropΠ (λ x → isPropΠ (λ _ → snd (x ∈ₛ t))))))
+--     (λ t p x mx → ⊥-rec mx)
+--     (λ a t p x mx → minj-lem2 x t (λ n → p n (x .fst n) (∥map∥ (cong (λ z → z .fst n)) mx)))
+--     (λ ih1 ih2 t p x → ∥rec∥ (snd (x ∈ₛ t))
+--       (λ { (inj₁ mx) → ih1 t (λ n y my → p n y (inl my)) x mx
+--          ; (inj₂ mx) → ih2 t (λ n y my → p n y (inr my)) x mx }))
+
+--   minj : ∀ s t → m s ≡ m t → s ≡ t
+--   minj s t eq =
+--     antisym⊆ (minj-lem s t (λ n → subst (mapPfin (λ x → x .fst n) s ⊆_) (minj' s t eq n) (λ _ mx → mx)))
+--              (minj-lem t s (λ n → subst (mapPfin (λ x → x .fst n) t ⊆_) (minj' t s (sym eq) n) (λ _ mx → mx)))
 
 
 
 
 
--- misInjective : ∀ s t → m s ≡ m t → s ≡ t
--- misInjective _ _ eq =
---   lem-injective-lim iPfin-ch _ _
---     {!!}
---     _ _ eq
+-- -- misInjective : ∀ s t → m s ≡ m t → s ≡ t
+-- -- misInjective _ _ eq =
+-- --   lem-injective-lim iPfin-ch _ _
+-- --     {!!}
+-- --     _ _ eq
 
 
 
-iPfin2 : ℕ → Type 
-iPfin2 zero = ωPfin
-iPfin2 (suc n) = Pfin (iPfin2 n)
+-- iPfin2 : ℕ → Type 
+-- iPfin2 zero = ωPfin
+-- iPfin2 (suc n) = Pfin (iPfin2 n)
 
-isSetiPfin2 : ∀ n → isSet (iPfin2 n)
-isSetiPfin2 zero = isSetωPfin
-isSetiPfin2 (suc n) = trunc
+-- isSetiPfin2 : ∀ n → isSet (iPfin2 n)
+-- isSetiPfin2 zero = isSetωPfin
+-- isSetiPfin2 (suc n) = trunc
 
-iMapPfin2 : ∀ n → iPfin2 (suc n) → iPfin2 n
-iMapPfin2 zero = m
-iMapPfin2 (suc n) = mapPfin (iMapPfin2 n)
+-- iMapPfin2 : ∀ n → iPfin2 (suc n) → iPfin2 n
+-- iMapPfin2 zero = m
+-- iMapPfin2 (suc n) = mapPfin (iMapPfin2 n)
 
-iPfin2-ch : ωChain₀
-iPfin2-ch = iPfin2 , iMapPfin2
+-- iPfin2-ch : ωChain₀
+-- iPfin2-ch = iPfin2 , iMapPfin2
 
--- the limit of the ω-chain iPfin2-ch
-ωPfin2 : Type
-ωPfin2 = ωLimit iPfin2-ch
+-- -- the limit of the ω-chain iPfin2-ch
+-- ωPfin2 : Type
+-- ωPfin2 = ωLimit iPfin2-ch
 
--- iMapPfin2isInjective : ∀ n (x y : iPfin2 (suc n))
---   → iMapPfin2 n x ≡ iMapPfin2 n y → x ≡ y
--- iMapPfin2isInjective zero x y eq = misInjective x y eq
--- iMapPfin2isInjective (suc n) x y eq =
---   mapPfinInj (iMapPfin2 n) (iMapPfin2isInjective n) x y eq
+-- -- iMapPfin2isInjective : ∀ n (x y : iPfin2 (suc n))
+-- --   → iMapPfin2 n x ≡ iMapPfin2 n y → x ≡ y
+-- -- iMapPfin2isInjective zero x y eq = misInjective x y eq
+-- -- iMapPfin2isInjective (suc n) x y eq =
+-- --   mapPfinInj (iMapPfin2 n) (iMapPfin2isInjective n) x y eq
 
--- u : ∀ n → iPfin2 n → ωPfin
--- u zero x = x
--- u (suc n) x = u n (iMapPfin2 n x)
+-- -- u : ∀ n → iPfin2 n → ωPfin
+-- -- u zero x = x
+-- -- u (suc n) x = u n (iMapPfin2 n x)
 
--- uisInjective : ∀ n (x y : iPfin2 n)
---   → u n x ≡ u n y → x ≡ y
--- uisInjective zero x y eq = eq
--- uisInjective (suc n) x y eq =
---   iMapPfin2isInjective n _ _ (uisInjective n _ _ eq)
+-- -- uisInjective : ∀ n (x y : iPfin2 n)
+-- --   → u n x ≡ u n y → x ≡ y
+-- -- uisInjective zero x y eq = eq
+-- -- uisInjective (suc n) x y eq =
+-- --   iMapPfin2isInjective n _ _ (uisInjective n _ _ eq)
 
--- uLem : ∀ (x : ωPfin2) n
---   → u n (iMapPfin2 n (x .fst (suc n))) ≡ m (x .fst 1)
--- uLem x zero = refl
--- uLem x (suc n) = cong (λ z → u n (iMapPfin2 n z)) (x .snd (suc n)) ∙ uLem x n
+-- -- uLem : ∀ (x : ωPfin2) n
+-- --   → u n (iMapPfin2 n (x .fst (suc n))) ≡ m (x .fst 1)
+-- -- uLem x zero = refl
+-- -- uLem x (suc n) = cong (λ z → u n (iMapPfin2 n z)) (x .snd (suc n)) ∙ uLem x n
 
--- uLem2 : ∀ (x : ×pℕ u) n
---   → u (suc n) (x .fst (suc n)) ≡ u n (x .fst n)
--- uLem2 x zero = x .snd 0
--- uLem2 (x , p) (suc n) = uLem2 ((λ n → iMapPfin2 n (x (suc n))) , λ n → p (suc n) ∙ sym (p 0)) n
-
--- -- uLem2-sh : ∀ (x : ×pℕ {!!}) n
+-- -- uLem2 : ∀ (x : ×pℕ u) n
 -- --   → u (suc n) (x .fst (suc n)) ≡ u n (x .fst n)
+-- -- uLem2 x zero = x .snd 0
+-- -- uLem2 (x , p) (suc n) = uLem2 ((λ n → iMapPfin2 n (x (suc n))) , λ n → p (suc n) ∙ sym (p 0)) n
 
--- -- subtypeEquiv : {A : Type} {P Q : A → Type}
--- --   → (∀ a → isProp (P a)) → (∀ a → isProp (Q a))
--- --   → (∀ {a} → P a → Q a) → (∀ {a} → Q a → P a)
--- --   → Σ A P ≃ Σ A Q
--- -- subtypeEquiv pP pQ P2Q Q2P = Σ-cong-equiv-snd {!!}
--- --   (λ x → x .fst , P2Q (x .snd)) ,
--- --   record { equiv-proof = λ y → ((y .fst , Q2P (y .snd)) ,
--- --                                  Σ≡Prop pQ refl) ,
--- --                                 λ z → Σ≡Prop {!!} {!!} }  
+-- -- -- uLem2-sh : ∀ (x : ×pℕ {!!}) n
+-- -- --   → u (suc n) (x .fst (suc n)) ≡ u n (x .fst n)
 
--- ωPfin2-iso-×pℕ : Iso (ωPfin2) (×pℕ u)
--- ωPfin2-iso-×pℕ = Σ-cong-iso-snd
---   λ x → iso (λ p n → uLem (x , p) n ∙ p 0)
---              (λ q n → uisInjective n _ _ (uLem2 (x , q) n))
---              (λ _ → isPropΠ (λ _ → isSetωPfin _ _) _ _)
---              λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _) _ _
+-- -- -- subtypeEquiv : {A : Type} {P Q : A → Type}
+-- -- --   → (∀ a → isProp (P a)) → (∀ a → isProp (Q a))
+-- -- --   → (∀ {a} → P a → Q a) → (∀ {a} → Q a → P a)
+-- -- --   → Σ A P ≃ Σ A Q
+-- -- -- subtypeEquiv pP pQ P2Q Q2P = Σ-cong-equiv-snd {!!}
+-- -- --   (λ x → x .fst , P2Q (x .snd)) ,
+-- -- --   record { equiv-proof = λ y → ((y .fst , Q2P (y .snd)) ,
+-- -- --                                  Σ≡Prop pQ refl) ,
+-- -- --                                 λ z → Σ≡Prop {!!} {!!} }  
 
--- ωPfin2≃×pℕ : ωPfin2 ≃ ×pℕ u
--- ωPfin2≃×pℕ = isoToEquiv ωPfin2-iso-×pℕ
+-- -- ωPfin2-iso-×pℕ : Iso (ωPfin2) (×pℕ u)
+-- -- ωPfin2-iso-×pℕ = Σ-cong-iso-snd
+-- --   λ x → iso (λ p n → uLem (x , p) n ∙ p 0)
+-- --              (λ q n → uisInjective n _ _ (uLem2 (x , q) n))
+-- --              (λ _ → isPropΠ (λ _ → isSetωPfin _ _) _ _)
+-- --              λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _) _ _
 
--- Pfin-iso : {A B : Type} → Iso A B → Iso (Pfin A) (Pfin B)
--- Pfin-iso AisoB =
---   iso (mapPfin (Iso.fun AisoB))
---       (mapPfin (Iso.inv AisoB))
---       (λ x → mapPfinComp x ∙ (λ i → mapPfin (λ y → Iso.rightInv AisoB y i) x) ∙ mapPfinId x)
---       λ x → mapPfinComp x ∙ (λ i → mapPfin (λ y → Iso.leftInv AisoB y i) x) ∙ mapPfinId x
+-- -- ωPfin2≃×pℕ : ωPfin2 ≃ ×pℕ u
+-- -- ωPfin2≃×pℕ = isoToEquiv ωPfin2-iso-×pℕ
 
--- Pfin≃ : {A B : Type} → A ≃ B → Pfin A ≃ Pfin B
--- Pfin≃ eq = isoToEquiv (Pfin-iso (equivToIso eq))
+-- -- Pfin-iso : {A B : Type} → Iso A B → Iso (Pfin A) (Pfin B)
+-- -- Pfin-iso AisoB =
+-- --   iso (mapPfin (Iso.fun AisoB))
+-- --       (mapPfin (Iso.inv AisoB))
+-- --       (λ x → mapPfinComp x ∙ (λ i → mapPfin (λ y → Iso.rightInv AisoB y i) x) ∙ mapPfinId x)
+-- --       λ x → mapPfinComp x ∙ (λ i → mapPfin (λ y → Iso.leftInv AisoB y i) x) ∙ mapPfinId x
 
--- -- the limit of the shifted (ω+ω)-chain
--- ωPfin2Sh : Type
--- ωPfin2Sh = ωLimit (shift iPfin2-ch)
+-- -- Pfin≃ : {A B : Type} → A ≃ B → Pfin A ≃ Pfin B
+-- -- Pfin≃ eq = isoToEquiv (Pfin-iso (equivToIso eq))
+
+-- -- -- the limit of the shifted (ω+ω)-chain
+-- -- ωPfin2Sh : Type
+-- -- ωPfin2Sh = ωLimit (shift iPfin2-ch)
 
 
--- ×pℕSh-iso-ωPfin2Sh : Iso (×pℕ (mapPfin ∘ u)) ωPfin2Sh
--- ×pℕSh-iso-ωPfin2Sh = Σ-cong-iso-snd
---   λ x → iso (λ p n → mapPfinInj (u n) (uisInjective n) _ _ (mapPfinComp (x (suc n)) ∙ lem x p n))
---              (λ p n → lem2 x (λ n → sym (mapPfinComp (x (suc n))) ∙ cong (mapPfin (u n)) (p n)) n)
---              (λ _ → isPropΠ (λ _ → trunc _ _) _ _)
---              λ _ → isPropΠ (λ _ → trunc _ _) _ _
+-- -- ×pℕSh-iso-ωPfin2Sh : Iso (×pℕ (mapPfin ∘ u)) ωPfin2Sh
+-- -- ×pℕSh-iso-ωPfin2Sh = Σ-cong-iso-snd
+-- --   λ x → iso (λ p n → mapPfinInj (u n) (uisInjective n) _ _ (mapPfinComp (x (suc n)) ∙ lem x p n))
+-- --              (λ p n → lem2 x (λ n → sym (mapPfinComp (x (suc n))) ∙ cong (mapPfin (u n)) (p n)) n)
+-- --              (λ _ → isPropΠ (λ _ → trunc _ _) _ _)
+-- --              λ _ → isPropΠ (λ _ → trunc _ _) _ _
+-- --   where
+-- --     lem : (x : ∀ n → Pfin (iPfin2 n))
+-- --       → (∀ n → mapPfin (u (suc n)) (x (suc n)) ≡ mapPfin (u 0) (x 0))
+-- --       → ∀ n → mapPfin (u (suc n)) (x (suc n)) ≡ mapPfin (u n) (x n)
+-- --     lem x p zero = p 0
+-- --     lem x p (suc n) = p (suc n) ∙ sym (p n) 
+
+-- --     lem2 : (x : ∀ n → Pfin (iPfin2 n))
+-- --       → (∀ n → mapPfin (u (suc n)) (x (suc n)) ≡ mapPfin (u n) (x n))
+-- --       → ∀ n → mapPfin (u (suc n)) (x (suc n)) ≡ mapPfin (u 0) (x 0)
+-- --     lem2 x p zero = p 0
+-- --     lem2 x p (suc n) = p (suc n) ∙ lem2 x p n
+
+
+-- -- -- ×pℕshift-iso : Iso (×pℕ (mapPfin ∘ u)) (×pℕ u)
+-- -- -- ×pℕshift-iso =
+-- -- --   iso (λ x → {!x .fst !} , {!!})
+-- -- --       (λ x → x .fst ∘ suc , λ n → {!x .snd (suc n)!})
+-- -- --       {!!}
+-- -- --       {!!}
+
+
+
+-- -- ×pℕSh≃ωPfin2Sh : ×pℕ (mapPfin ∘ u) ≃ ωPfin2Sh
+-- -- ×pℕSh≃ωPfin2Sh = isoToEquiv ×pℕSh-iso-ωPfin2Sh
+
+-- -- ωPfin22Sh≃ωPfin2 : ωPfin2Sh ≃ ωPfin2
+-- -- ωPfin22Sh≃ωPfin2 = invEquiv (shift≃ iPfin2-ch isSetiPfin2)
+
+-- -- τ-equiv : Pfin ωPfin2 ≃ ωPfin2
+-- -- τ-equiv =
+-- --   compEquiv (Pfin≃ ωPfin2≃×pℕ)
+-- --     (compEquiv (Pfin×pℕ {!!} (λ _ → trunc) isSetωPfin u (λ n → uisInjective (suc n)))
+-- --       (compEquiv ×pℕSh≃ωPfin2Sh ωPfin22Sh≃ωPfin2))
+
+-- ConePfinωPfin2 : Cone iPfin2-ch (Pfin ωPfin2)
+-- ConePfinωPfin2 =
+--   (λ n x → iMapPfin2 n (mapPfin (proj iPfin2-ch n) x)) ,
+--   λ n x → cong (iMapPfin2 n)
+--     (mapPfinComp x ∙ cong (λ f → mapPfin f x)
+--       (funExt (λ y → y .snd n)))
+
+-- τ-1 : Pfin ωPfin2 → ωPfin2
+-- τ-1 = Iso.inv (AdjLim iPfin2-ch _) ConePfinωPfin2
+
+-- -- τ : ωPfin2 → Pfin ωPfin2
+-- -- τ = invEq τ-equiv
+
+-- -- τ-1≡ : τ-1 ≡ equivFun τ-equiv
+-- -- τ-1≡ = funExt (λ x → Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _))
+-- --   (funExt (λ n → cong (iMapPfin2 n) (sym (mapPfinComp x)))))
+
+-- -- module Finality (A : Type) (α : A → Pfin A)
+-- --                 (αsim : A → ωPfin2) 
+-- --                 (αsim-mor : ∀ a → τ (αsim a) ≡ mapPfin αsim (α a)) where
+
+-- --   pα : ∀ n (a : A) → iPfin n
+-- --   pα zero a = tt
+-- --   pα (suc n) a = mapPfin (pα n) (α a)
+
+-- --   pα-res : ∀ n (a : A) → iMapPfin n (mapPfin (pα n) (α a)) ≡ pα n a
+-- --   pα-res zero a = refl
+-- --   pα-res (suc n) a = mapPfinComp (α a) ∙ cong (λ f → mapPfin f (α a)) (funExt (pα-res n))
+
+-- --   pα2 : ∀ n (a : A) → iPfin2 n
+-- --   pα2 zero a = (λ n → pα n a) , λ n → pα-res n a 
+-- --   pα2 (suc n) a = mapPfin (pα2 n) (α a)
+
+-- --   pα2-res : ∀ n (a : A) → iMapPfin2 n (mapPfin (pα2 n) (α a)) ≡ pα2 n a
+-- --   pα2-res zero a = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin  _ _ _))
+-- --     (funExt (λ n → cong (iMapPfin n) (mapPfinComp (α a)) ∙ pα-res n a))
+-- --   pα2-res (suc n) a = mapPfinComp (α a) ∙ cong (λ f → mapPfin f (α a)) (funExt (pα2-res n))
+
+-- --   coneA : Cone iPfin2-ch A
+-- --   coneA = pα2 , pα2-res
+
+-- --   αbar : A → ωPfin2
+-- --   αbar = Iso.inv (AdjLim iPfin2-ch _) coneA
+
+-- --   αbar-mor' : ∀ a → αbar a ≡ τ-1 (mapPfin αbar (α a))
+-- --   αbar-mor' a = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _))
+-- --     (funExt (λ n → sym (cong (iMapPfin2 n) (mapPfinComp (α a)) ∙ pα2-res n a)))
+
+-- --   αbar-mor : ∀ a → τ (αbar a) ≡ mapPfin αbar (α a)
+-- --   αbar-mor a =
+-- --       τ (αbar a)
+-- --     ≡⟨ (λ i → τ (αbar-mor' a i)) ⟩
+-- --       τ (τ-1 (mapPfin αbar (α a)))
+-- --     ≡⟨ (λ i → τ (τ-1≡ i (mapPfin αbar (α a)))) ⟩
+-- --       τ (equivFun τ-equiv (mapPfin αbar (α a)))
+-- --     ≡⟨ (λ i → Iso.leftInv (equivToIso τ-equiv) (mapPfin αbar (α a)) i) ⟩
+-- --       mapPfin αbar (α a)
+-- --     ∎
+
+-- --   αsim-mor' : ∀ a → αsim a ≡ τ-1 (mapPfin αsim (α a))
+-- --   αsim-mor' a =
+-- --       αsim a
+-- --     ≡⟨ sym (Iso.rightInv (equivToIso τ-equiv) (αsim a)) ⟩
+-- --       equivFun τ-equiv (τ (αsim a))
+-- --     ≡⟨ (λ i → equivFun τ-equiv (αsim-mor a i) ) ⟩
+-- --       equivFun τ-equiv (mapPfin αsim (α a))
+-- --     ≡⟨ (λ i → τ-1≡ (~ i) (mapPfin αsim (α a))) ⟩
+-- --       τ-1 (mapPfin αsim (α a))
+-- --     ∎
+
+-- --   αbar-eq : ∀ a n → αsim a .fst 0 .fst n ≡ pα n a
+-- --   αbar-eq a zero = refl
+-- --   αbar-eq a (suc n) = 
+-- --     funExt⁻ (cong fst (funExt⁻ (cong fst (αsim-mor' a)) 0)) (suc n)
+-- --     ∙ mapPfinComp ((mapPfin (proj iPfin2-ch 0) (mapPfin αsim (α a))))
+-- --     ∙ mapPfinComp (mapPfin αsim (α a))
+-- --     ∙ mapPfinComp (α a)
+-- --     ∙ cong (λ f → mapPfin f (α a)) (funExt (λ x → αsim x .fst 0 .snd n ∙ αbar-eq x n))
+
+-- --   αbar-eq2 : ∀ a n → αsim a .fst n ≡ pα2 n a
+-- --   αbar-eq2 a zero = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _))
+-- --     (funExt (αbar-eq a))
+-- --   αbar-eq2 a (suc n) =
+-- --     funExt⁻ (cong fst (αsim-mor' a)) (suc n)
+-- --     ∙ mapPfinComp (mapPfin αsim (α a))
+-- --     ∙ mapPfinComp (α a)
+-- --     ∙ cong (λ f → mapPfin f (α a)) (funExt (λ x → αsim x .snd n ∙ αbar-eq2 x n))
+
+-- --   αbar-uniq : ∀ a → αsim a ≡ αbar a
+-- --   αbar-uniq a = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _))
+-- --     (funExt (αbar-eq2 a))
+
+
+
+-- {-
+-- iPfinEmb : ∀ k n → k ≤N n → iPfin k → iPfin n
+-- iPfinEmb zero zero le x = tt
+-- iPfinEmb zero (suc n) le x = ø
+-- iPfinEmb (suc k) zero le x = ⊥-rec (¬-<-zero le)
+-- iPfinEmb (suc k) (suc n) le x = mapPfin (iPfinEmb k n (pred-≤-pred le)) x
+
+-- iPfinEmb≡ : ∀ {n k l} → k ≡ l
+--   → (lek : k ≤N n) (lel : l ≤N n)
+--   → (x : ∀ n → iPfin n)
+--   → iPfinEmb k n lek (x k) ≡ iPfinEmb l n lel (x l)
+-- iPfinEmb≡ {n} {k} =
+--   J (λ l eq → (lek : k ≤N n) (lel : l ≤N n) →  (x : ∀ n → iPfin n)
+--        → iPfinEmb k n lek (x k) ≡ iPfinEmb l n lel (x l))
+--     λ lek lel x → cong (λ p → iPfinEmb k n p (x k)) {!!}
+
+-- iPfinEmb-res : ∀ k n (lek : k ≤N n)
+--   → (x : iPfin k)
+--   → iMapPfin n (iPfinEmb k (suc n) (≤-suc lek) x) ≡ iPfinEmb k n lek x
+-- iPfinEmb-res zero zero lek x = refl
+-- iPfinEmb-res zero (suc n) lek x = refl
+-- iPfinEmb-res (suc k) zero lek x = ⊥-rec (¬-<-zero lek)
+-- iPfinEmb-res (suc k) (suc n) lek x =
+--   mapPfinComp x
+--   ∙ cong (λ f → mapPfin f x) (funExt (λ y →
+--       cong (iMapPfin n) (cong (λ p → iPfinEmb k (suc n) p y) {!!})
+--       ∙ iPfinEmb-res k n (pred-≤-pred lek) y))
+
+-- iPfinEmbRefl : ∀ n → (x : iPfin n)
+--   → iPfinEmb n n ≤-refl x ≡ x
+-- iPfinEmbRefl zero x = refl
+-- iPfinEmbRefl (suc n) x =
+--   cong (λ f → mapPfin f x) (funExt (λ y →
+--     cong (λ p → iPfinEmb n n p y) {!!}
+--     ∙ iPfinEmbRefl n y))
+--   ∙ mapPfinId x
+
+
+-- void : ∀ n → iPfin n
+-- void zero = tt
+-- void (suc n) = ø
+
+-- void-res : ∀ n → iMapPfin n ø ≡ void n
+-- void-res zero = refl
+-- void-res (suc n) = refl
+
+-- void-ch : ωPfin
+-- void-ch = void , void-res
+
+-- shiftη : (∀ n → iPfin n) → ∀ n → iPfin n
+-- shiftη x zero = tt
+-- shiftη x (suc n) = η (x n)
+
+-- path2 : ∀ n → iPfin2 n
+-- path2 zero = path-ch
+-- path2 (suc n) = η (path2 n)
+
+-- path2-res : ∀ n → iMapPfin2 n (path2 (suc n)) ≡ path2 n
+-- path2-res zero = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _)) (funExt path-res)
+-- path2-res (suc n) = cong η (path2-res n)
+
+-- path2-ch : ωPfin2
+-- path2-ch = path2 , path2-res
+-- -}
+
+-- {-
+-- path?' : (a : ℕ → Bool) → ∀ n → iPfin n
+-- path?' a zero = tt
+-- path?' a (suc n) with a 0 ≟ true
+-- ... | yes p = ø
+-- ... | no ¬p = η (path?' (a ∘ suc) n)
+
+-- path? : (a : ℕ → Bool) → ∀ n → iPfin n
+-- path? a n with true-before? a n
+-- ... | yes (k , k≤n , eq) = iPfinEmb k n k≤n (path k)
+-- ... | no _ = path n
+
+
+-- path?-res : (a : ℕ → Bool) → isProp (Σ[ n ∈ ℕ ] a n ≡ true)
+--   → ∀ n → iMapPfin n (path? a (suc n)) ≡ path? a n
+-- path?-res a aP n with true-before? a (suc n)
+-- ... | yes (k , lek , eqk) with true-before? a n
+-- ... | yes (l , lel , eql) =
+--   cong (iMapPfin n) (iPfinEmb≡ (cong fst (aP (k , eqk) (l , eql))) lek (≤-suc lel) path)
+--   ∙ iPfinEmb-res l n lel (path l)
+-- ... | no ¬p =
+--   cong (iMapPfin n)
+--     (iPfinEmb≡ {!!} lek ≤-refl path
+--     ∙ cong η
+--       (cong (λ p → iPfinEmb n n p (path n)) {!!}
+--       ∙ iPfinEmbRefl n (path n)))
+--   ∙ path-res n
+-- path?-res a aP n | no ¬p with true-before? a n
+-- ... | yes (k , k≤n , eq) = ⊥-rec (¬p (k , ≤-suc k≤n , eq))
+-- ... | no _ = path-res n
+
+-- path?-ch : (a : ℕ → Bool) (aP : isProp (Σ[ n ∈ ℕ ] a n ≡ true)) → ωPfin
+-- path?-ch a aP = path? a , path?-res a aP
+
+-- path?-ø : (a : ℕ → Bool) → isProp (Σ[ n ∈ ℕ ] a n ≡ true)
+--   → a 0 ≡ true → ∀ n → path? a n ≡ void n
+-- path?-ø a aP eq0 n with true-before? a n
+-- path?-ø a aP eq0 zero | yes (k , le , eqk) =
+--   iPfinEmb≡ (cong fst (aP (k , eqk) (0 , eq0))) le zero-≤ path
+-- path?-ø a aP eq0 (suc n) | yes (k , le , eqk) = 
+--   iPfinEmb≡ (cong fst (aP (k , eqk) (0 , eq0))) le zero-≤ path
+-- ... | no p = ⊥-rec (p (0 , zero-≤ , eq0))
+
+-- path?-η : (a : ℕ → Bool) → isProp (Σ[ n ∈ ℕ ] a n ≡ true)
+--   → a 0 ≡ false → ∀ n → path? a n ≡ shiftη (path? (a ∘ suc)) n
+-- path?-η a aP eq0 n with true-before? a n
+-- path?-η a aP eq0 zero | yes (zero , le , eqk) = refl
+-- path?-η a aP eq0 zero | yes (suc k , le , eqk) = ⊥-rec (¬-<-zero le)
+-- path?-η a aP eq0 (suc n) | yes (zero , le , eqk) = ⊥-rec {!!}
+-- path?-η a aP eq0 (suc n) | yes (suc k , lek , eqk) with true-before? (a ∘ suc) n
+-- ... | yes (l , lel , eql) =
+--   cong η (iPfinEmb≡ (injSuc (cong fst (aP (suc k , eqk) (suc l , eql)))) (pred-≤-pred lek) lel path)
+-- ... | no p = ⊥-rec (p (k , pred-≤-pred lek , eqk))
+-- path?-η a aP eq0 zero | no p = refl
+-- path?-η a aP eq0 (suc n) | no p with true-before? (a ∘ suc) n
+-- ... | yes (k , le , eqk) = ⊥-rec (p (suc k , suc-≤-suc le , eqk))
+-- ... | no q = refl
+
+-- path?≡ : (a : ℕ → Bool) (aP : isProp (Σ[ n ∈ ℕ ] a n ≡ true))
+--   → ∀ n → path? a n ≡ path?' a n
+-- path?≡ a aP 0 = refl
+-- path?≡ a aP (suc n) with a 0 ≟ true
+-- ... | yes p = path?-ø a aP p (suc n)  
+-- ... | no p with dichotomyBool (a 0)
+-- ... | inj₁ q = ⊥-rec (p q)
+-- ... | inj₂ q =
+--   path?-η a aP q (suc n)
+--   ∙ cong η (path?≡ (a ∘ suc) (λ { (x , eqx) (y , eqy) → Σ≡Prop (λ _ → isSetBool _ _) (injSuc (cong fst (aP (suc x , eqx) (suc y , eqy)))) }) n)  
+-- -}
+
+-- path2? : (a : ℕ → Bool) → ∀ n → iPfin2 n
+-- path2? a zero = path?-ch a
+-- path2? a (suc n) = if a 0 then ø else η (path2? (a ∘ suc) n)
+
+-- path2?-res : (a : ℕ → Bool) 
+--   → ∀ n → iMapPfin2 n (path2? a (suc n)) ≡ path2? a n
+-- path2?-res a zero = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _))
+--   (funExt (λ n → cong (iMapPfin n) (lem n (a 0)) ∙ path?-res a n))
 --   where
---     lem : (x : ∀ n → Pfin (iPfin2 n))
---       → (∀ n → mapPfin (u (suc n)) (x (suc n)) ≡ mapPfin (u 0) (x 0))
---       → ∀ n → mapPfin (u (suc n)) (x (suc n)) ≡ mapPfin (u n) (x n)
---     lem x p zero = p 0
---     lem x p (suc n) = p (suc n) ∙ sym (p n) 
+--     lem : ∀ n → (b : Bool)
+--       → mapPfin (proj iPfin-ch n) (if b then ø else η (path?-ch (a ∘ suc)))
+--         ≡ (if b then ø else η (path? (a ∘ suc) n))
+--     lem n false = refl
+--     lem n true = refl
+-- path2?-res a (suc n) with a 0
+-- ... | false = cong η (path2?-res (a ∘ suc) n)
+-- ... | true = refl
 
---     lem2 : (x : ∀ n → Pfin (iPfin2 n))
---       → (∀ n → mapPfin (u (suc n)) (x (suc n)) ≡ mapPfin (u n) (x n))
---       → ∀ n → mapPfin (u (suc n)) (x (suc n)) ≡ mapPfin (u 0) (x 0)
---     lem2 x p zero = p 0
---     lem2 x p (suc n) = p (suc n) ∙ lem2 x p n
+-- path2?-ch : (a : ℕ → Bool) → ωPfin2
+-- path2?-ch a = path2? a , path2?-res a
 
+-- {-
+-- module FromInjectivity2 (τ-1inj : ∀ s t → τ-1 s ≡ τ-1 t → s ≡ t) where
 
--- -- ×pℕshift-iso : Iso (×pℕ (mapPfin ∘ u)) (×pℕ u)
--- -- ×pℕshift-iso =
--- --   iso (λ x → {!x .fst !} , {!!})
--- --       (λ x → x .fst ∘ suc , λ n → {!x .snd (suc n)!})
--- --       {!!}
--- --       {!!}
+--   equal-proj : ∀ s t 
+--     → (∀ n → mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) s
+--                      ≡ mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) t)
+--     → ∀ (n : ℕ) → mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst 0 .fst n) s
+--                      ≡ mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst 0 .fst n) t
+--   equal-proj s t p n =
+--     sym (mapPfinComp s)
+--     ∙ cong (mapPfin (λ x → x .fst n)) (p 0)
+--     ∙ mapPfinComp {g = λ x → x .fst n}{λ x → x .fst 0} t
 
+--   complete' : ∀ s t 
+--     → (∀ n → mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) s
+--                      ≡ mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) t)
+--     → τ-1 s ≡ τ-1 t
+--   complete' s t p = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _))
+--     (funExt (λ { zero → Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _))
+--                  (funExt (λ { zero → refl ;
+--                               (suc n) →
+--                                 mapPfinComp  (mapPfin (proj iPfin2-ch 0) s)
+--                                 ∙ mapPfinComp s
+--                                 ∙ cong (λ f → mapPfin f s) (funExt (λ z → z .fst 0 .snd n))
+--                                 ∙ equal-proj s t p n
+--                                 ∙ cong (λ f → mapPfin f t) (funExt (λ z → sym (z .fst 0 .snd n)))
+--                                 ∙ sym (mapPfinComp t)
+--                                 ∙ sym (mapPfinComp  (mapPfin (proj iPfin2-ch 0) t))})) ;
+--                  (suc n) → antisym⊆
+--                    (λ x mx → ∥rec∥ (snd ((x ∈ₛ mapPfin (iMapPfin2 n) (mapPfin (proj iPfin2-ch (suc n)) t))))
+--                      (λ { (y , my , eq) → subst (λ z → ⟨ x ∈ₛ z ⟩)
+--                                                  (sym (mapPfinComp t
+--                                                    ∙ cong (λ f → mapPfin f t) (funExt (λ z → z .snd n))
+--                                                    ∙ sym (p n)
+--                                                    ∙ cong (λ f → mapPfin f s) (sym (funExt (λ z → z .snd n)))
+--                                                    ∙ sym (mapPfinComp s)))
+--                                                  (subst (λ z → ⟨ z ∈ₛ mapPfin (iMapPfin2 n) (mapPfin (proj iPfin2-ch (suc n)) s) ⟩)
+--                                                         eq
+--                                                         (∈ₛmapPfin (iMapPfin2 n) y (mapPfin (proj iPfin2-ch (suc n)) s) my)) })
+--                      (pre∈ₛmapPfin (iMapPfin2 n) x (mapPfin (proj iPfin2-ch (suc n)) s) mx))
+--                    (λ x mx → ∥rec∥ (snd ((x ∈ₛ mapPfin (iMapPfin2 n) (mapPfin (proj iPfin2-ch (suc n)) s))))
+--                      (λ { (y , my , eq) → subst (λ z → ⟨ x ∈ₛ z ⟩)
+--                                                  (sym (mapPfinComp s
+--                                                    ∙ cong (λ f → mapPfin f s) (funExt (λ z → z .snd n))
+--                                                    ∙ p n 
+--                                                    ∙ cong (λ f → mapPfin f t) (sym (funExt (λ z → z .snd n)))
+--                                                    ∙ sym (mapPfinComp t)))
+--                                                  (subst (λ z → ⟨ z ∈ₛ mapPfin (iMapPfin2 n) (mapPfin (proj iPfin2-ch (suc n)) t) ⟩)
+--                                                         eq
+--                                                         (∈ₛmapPfin (iMapPfin2 n) y (mapPfin (proj iPfin2-ch (suc n)) t) my)) })
+--                      (pre∈ₛmapPfin (iMapPfin2 n) x (mapPfin (proj iPfin2-ch (suc n)) t) mx))}))
 
-
--- ×pℕSh≃ωPfin2Sh : ×pℕ (mapPfin ∘ u) ≃ ωPfin2Sh
--- ×pℕSh≃ωPfin2Sh = isoToEquiv ×pℕSh-iso-ωPfin2Sh
-
--- ωPfin22Sh≃ωPfin2 : ωPfin2Sh ≃ ωPfin2
--- ωPfin22Sh≃ωPfin2 = invEquiv (shift≃ iPfin2-ch isSetiPfin2)
-
--- τ-equiv : Pfin ωPfin2 ≃ ωPfin2
--- τ-equiv =
---   compEquiv (Pfin≃ ωPfin2≃×pℕ)
---     (compEquiv (Pfin×pℕ {!!} (λ _ → trunc) isSetωPfin u (λ n → uisInjective (suc n)))
---       (compEquiv ×pℕSh≃ωPfin2Sh ωPfin22Sh≃ωPfin2))
-
-ConePfinωPfin2 : Cone iPfin2-ch (Pfin ωPfin2)
-ConePfinωPfin2 =
-  (λ n x → iMapPfin2 n (mapPfin (proj iPfin2-ch n) x)) ,
-  λ n x → cong (iMapPfin2 n)
-    (mapPfinComp x ∙ cong (λ f → mapPfin f x)
-      (funExt (λ y → y .snd n)))
-
-τ-1 : Pfin ωPfin2 → ωPfin2
-τ-1 = Iso.inv (AdjLim iPfin2-ch _) ConePfinωPfin2
-
--- τ : ωPfin2 → Pfin ωPfin2
--- τ = invEq τ-equiv
-
--- τ-1≡ : τ-1 ≡ equivFun τ-equiv
--- τ-1≡ = funExt (λ x → Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _))
---   (funExt (λ n → cong (iMapPfin2 n) (sym (mapPfinComp x)))))
-
--- module Finality (A : Type) (α : A → Pfin A)
---                 (αsim : A → ωPfin2) 
---                 (αsim-mor : ∀ a → τ (αsim a) ≡ mapPfin αsim (α a)) where
-
---   pα : ∀ n (a : A) → iPfin n
---   pα zero a = tt
---   pα (suc n) a = mapPfin (pα n) (α a)
-
---   pα-res : ∀ n (a : A) → iMapPfin n (mapPfin (pα n) (α a)) ≡ pα n a
---   pα-res zero a = refl
---   pα-res (suc n) a = mapPfinComp (α a) ∙ cong (λ f → mapPfin f (α a)) (funExt (pα-res n))
-
---   pα2 : ∀ n (a : A) → iPfin2 n
---   pα2 zero a = (λ n → pα n a) , λ n → pα-res n a 
---   pα2 (suc n) a = mapPfin (pα2 n) (α a)
-
---   pα2-res : ∀ n (a : A) → iMapPfin2 n (mapPfin (pα2 n) (α a)) ≡ pα2 n a
---   pα2-res zero a = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin  _ _ _))
---     (funExt (λ n → cong (iMapPfin n) (mapPfinComp (α a)) ∙ pα-res n a))
---   pα2-res (suc n) a = mapPfinComp (α a) ∙ cong (λ f → mapPfin f (α a)) (funExt (pα2-res n))
-
---   coneA : Cone iPfin2-ch A
---   coneA = pα2 , pα2-res
-
---   αbar : A → ωPfin2
---   αbar = Iso.inv (AdjLim iPfin2-ch _) coneA
-
---   αbar-mor' : ∀ a → αbar a ≡ τ-1 (mapPfin αbar (α a))
---   αbar-mor' a = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _))
---     (funExt (λ n → sym (cong (iMapPfin2 n) (mapPfinComp (α a)) ∙ pα2-res n a)))
-
---   αbar-mor : ∀ a → τ (αbar a) ≡ mapPfin αbar (α a)
---   αbar-mor a =
---       τ (αbar a)
---     ≡⟨ (λ i → τ (αbar-mor' a i)) ⟩
---       τ (τ-1 (mapPfin αbar (α a)))
---     ≡⟨ (λ i → τ (τ-1≡ i (mapPfin αbar (α a)))) ⟩
---       τ (equivFun τ-equiv (mapPfin αbar (α a)))
---     ≡⟨ (λ i → Iso.leftInv (equivToIso τ-equiv) (mapPfin αbar (α a)) i) ⟩
---       mapPfin αbar (α a)
---     ∎
-
---   αsim-mor' : ∀ a → αsim a ≡ τ-1 (mapPfin αsim (α a))
---   αsim-mor' a =
---       αsim a
---     ≡⟨ sym (Iso.rightInv (equivToIso τ-equiv) (αsim a)) ⟩
---       equivFun τ-equiv (τ (αsim a))
---     ≡⟨ (λ i → equivFun τ-equiv (αsim-mor a i) ) ⟩
---       equivFun τ-equiv (mapPfin αsim (α a))
---     ≡⟨ (λ i → τ-1≡ (~ i) (mapPfin αsim (α a))) ⟩
---       τ-1 (mapPfin αsim (α a))
---     ∎
-
---   αbar-eq : ∀ a n → αsim a .fst 0 .fst n ≡ pα n a
---   αbar-eq a zero = refl
---   αbar-eq a (suc n) = 
---     funExt⁻ (cong fst (funExt⁻ (cong fst (αsim-mor' a)) 0)) (suc n)
---     ∙ mapPfinComp ((mapPfin (proj iPfin2-ch 0) (mapPfin αsim (α a))))
---     ∙ mapPfinComp (mapPfin αsim (α a))
---     ∙ mapPfinComp (α a)
---     ∙ cong (λ f → mapPfin f (α a)) (funExt (λ x → αsim x .fst 0 .snd n ∙ αbar-eq x n))
-
---   αbar-eq2 : ∀ a n → αsim a .fst n ≡ pα2 n a
---   αbar-eq2 a zero = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _))
---     (funExt (αbar-eq a))
---   αbar-eq2 a (suc n) =
---     funExt⁻ (cong fst (αsim-mor' a)) (suc n)
---     ∙ mapPfinComp (mapPfin αsim (α a))
---     ∙ mapPfinComp (α a)
---     ∙ cong (λ f → mapPfin f (α a)) (funExt (λ x → αsim x .snd n ∙ αbar-eq2 x n))
-
---   αbar-uniq : ∀ a → αsim a ≡ αbar a
---   αbar-uniq a = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _))
---     (funExt (αbar-eq2 a))
-
-
-
-
-iPfinEmb : ∀ k n → k ≤N n → iPfin k → iPfin n
-iPfinEmb zero zero le x = tt
-iPfinEmb zero (suc n) le x = ø
-iPfinEmb (suc k) zero le x = ⊥-rec (¬-<-zero le)
-iPfinEmb (suc k) (suc n) le x = mapPfin (iPfinEmb k n (pred-≤-pred le)) x
-
-iPfinEmb≡ : ∀ {n k l} → k ≡ l
-  → (lek : k ≤N n) (lel : l ≤N n)
-  → (x : ∀ n → iPfin n)
-  → iPfinEmb k n lek (x k) ≡ iPfinEmb l n lel (x l)
-iPfinEmb≡ {n} {k} =
-  J (λ l eq → (lek : k ≤N n) (lel : l ≤N n) →  (x : ∀ n → iPfin n)
-       → iPfinEmb k n lek (x k) ≡ iPfinEmb l n lel (x l))
-    λ lek lel x → cong (λ p → iPfinEmb k n p (x k)) {!!}
-
-iPfinEmb-res : ∀ k n (lek : k ≤N n)
-  → (x : iPfin k)
-  → iMapPfin n (iPfinEmb k (suc n) (≤-suc lek) x) ≡ iPfinEmb k n lek x
-iPfinEmb-res zero zero lek x = refl
-iPfinEmb-res zero (suc n) lek x = refl
-iPfinEmb-res (suc k) zero lek x = ⊥-rec (¬-<-zero lek)
-iPfinEmb-res (suc k) (suc n) lek x =
-  mapPfinComp x
-  ∙ cong (λ f → mapPfin f x) (funExt (λ y →
-      cong (iMapPfin n) (cong (λ p → iPfinEmb k (suc n) p y) {!!})
-      ∙ iPfinEmb-res k n (pred-≤-pred lek) y))
-
-iPfinEmbRefl : ∀ n → (x : iPfin n)
-  → iPfinEmb n n ≤-refl x ≡ x
-iPfinEmbRefl zero x = refl
-iPfinEmbRefl (suc n) x =
-  cong (λ f → mapPfin f x) (funExt (λ y →
-    cong (λ p → iPfinEmb n n p y) {!!}
-    ∙ iPfinEmbRefl n y))
-  ∙ mapPfinId x
-
-
-void : ∀ n → iPfin n
-void zero = tt
-void (suc n) = ø
-
-void-res : ∀ n → iMapPfin n ø ≡ void n
-void-res zero = refl
-void-res (suc n) = refl
-
-void-ch : ωPfin
-void-ch = void , void-res
-
-shiftη : (∀ n → iPfin n) → ∀ n → iPfin n
-shiftη x zero = tt
-shiftη x (suc n) = η (x n)
-
-path2 : ∀ n → iPfin2 n
-path2 zero = path-ch
-path2 (suc n) = η (path2 n)
-
-path2-res : ∀ n → iMapPfin2 n (path2 (suc n)) ≡ path2 n
-path2-res zero = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _)) (funExt path-res)
-path2-res (suc n) = cong η (path2-res n)
-
-path2-ch : ωPfin2
-path2-ch = path2 , path2-res
-
-
-{-
-path?' : (a : ℕ → Bool) → ∀ n → iPfin n
-path?' a zero = tt
-path?' a (suc n) with a 0 ≟ true
-... | yes p = ø
-... | no ¬p = η (path?' (a ∘ suc) n)
-
-path? : (a : ℕ → Bool) → ∀ n → iPfin n
-path? a n with true-before? a n
-... | yes (k , k≤n , eq) = iPfinEmb k n k≤n (path k)
-... | no _ = path n
-
-
-path?-res : (a : ℕ → Bool) → isProp (Σ[ n ∈ ℕ ] a n ≡ true)
-  → ∀ n → iMapPfin n (path? a (suc n)) ≡ path? a n
-path?-res a aP n with true-before? a (suc n)
-... | yes (k , lek , eqk) with true-before? a n
-... | yes (l , lel , eql) =
-  cong (iMapPfin n) (iPfinEmb≡ (cong fst (aP (k , eqk) (l , eql))) lek (≤-suc lel) path)
-  ∙ iPfinEmb-res l n lel (path l)
-... | no ¬p =
-  cong (iMapPfin n)
-    (iPfinEmb≡ {!!} lek ≤-refl path
-    ∙ cong η
-      (cong (λ p → iPfinEmb n n p (path n)) {!!}
-      ∙ iPfinEmbRefl n (path n)))
-  ∙ path-res n
-path?-res a aP n | no ¬p with true-before? a n
-... | yes (k , k≤n , eq) = ⊥-rec (¬p (k , ≤-suc k≤n , eq))
-... | no _ = path-res n
-
-path?-ch : (a : ℕ → Bool) (aP : isProp (Σ[ n ∈ ℕ ] a n ≡ true)) → ωPfin
-path?-ch a aP = path? a , path?-res a aP
-
-path?-ø : (a : ℕ → Bool) → isProp (Σ[ n ∈ ℕ ] a n ≡ true)
-  → a 0 ≡ true → ∀ n → path? a n ≡ void n
-path?-ø a aP eq0 n with true-before? a n
-path?-ø a aP eq0 zero | yes (k , le , eqk) =
-  iPfinEmb≡ (cong fst (aP (k , eqk) (0 , eq0))) le zero-≤ path
-path?-ø a aP eq0 (suc n) | yes (k , le , eqk) = 
-  iPfinEmb≡ (cong fst (aP (k , eqk) (0 , eq0))) le zero-≤ path
-... | no p = ⊥-rec (p (0 , zero-≤ , eq0))
-
-path?-η : (a : ℕ → Bool) → isProp (Σ[ n ∈ ℕ ] a n ≡ true)
-  → a 0 ≡ false → ∀ n → path? a n ≡ shiftη (path? (a ∘ suc)) n
-path?-η a aP eq0 n with true-before? a n
-path?-η a aP eq0 zero | yes (zero , le , eqk) = refl
-path?-η a aP eq0 zero | yes (suc k , le , eqk) = ⊥-rec (¬-<-zero le)
-path?-η a aP eq0 (suc n) | yes (zero , le , eqk) = ⊥-rec {!!}
-path?-η a aP eq0 (suc n) | yes (suc k , lek , eqk) with true-before? (a ∘ suc) n
-... | yes (l , lel , eql) =
-  cong η (iPfinEmb≡ (injSuc (cong fst (aP (suc k , eqk) (suc l , eql)))) (pred-≤-pred lek) lel path)
-... | no p = ⊥-rec (p (k , pred-≤-pred lek , eqk))
-path?-η a aP eq0 zero | no p = refl
-path?-η a aP eq0 (suc n) | no p with true-before? (a ∘ suc) n
-... | yes (k , le , eqk) = ⊥-rec (p (suc k , suc-≤-suc le , eqk))
-... | no q = refl
-
-path?≡ : (a : ℕ → Bool) (aP : isProp (Σ[ n ∈ ℕ ] a n ≡ true))
-  → ∀ n → path? a n ≡ path?' a n
-path?≡ a aP 0 = refl
-path?≡ a aP (suc n) with a 0 ≟ true
-... | yes p = path?-ø a aP p (suc n)  
-... | no p with dichotomyBool (a 0)
-... | inj₁ q = ⊥-rec (p q)
-... | inj₂ q =
-  path?-η a aP q (suc n)
-  ∙ cong η (path?≡ (a ∘ suc) (λ { (x , eqx) (y , eqy) → Σ≡Prop (λ _ → isSetBool _ _) (injSuc (cong fst (aP (suc x , eqx) (suc y , eqy)))) }) n)  
--}
-
-path2? : (a : ℕ → Bool) → ∀ n → iPfin2 n
-path2? a zero = path?-ch a
-path2? a (suc n) = if a 0 then ø else η (path2? (a ∘ suc) n)
-
-path2?-res : (a : ℕ → Bool) 
-  → ∀ n → iMapPfin2 n (path2? a (suc n)) ≡ path2? a n
-path2?-res a zero = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _))
-  (funExt (λ n → cong (iMapPfin n) (lem n (a 0)) ∙ path?-res a n))
-  where
-    lem : ∀ n → (b : Bool)
-      → mapPfin (proj iPfin-ch n) (if b then ø else η (path?-ch (a ∘ suc)))
-        ≡ (if b then ø else η (path? (a ∘ suc) n))
-    lem n false = refl
-    lem n true = refl
-path2?-res a (suc n) with a 0
-... | false = cong η (path2?-res (a ∘ suc) n)
-... | true = refl
-
-path2?-ch : (a : ℕ → Bool) → ωPfin2
-path2?-ch a = path2? a , path2?-res a
-
-
-module FromInjectivity2 (τ-1inj : ∀ s t → τ-1 s ≡ τ-1 t → s ≡ t) where
-
-  equal-proj : ∀ s t 
-    → (∀ n → mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) s
-                     ≡ mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) t)
-    → ∀ (n : ℕ) → mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst 0 .fst n) s
-                     ≡ mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst 0 .fst n) t
-  equal-proj s t p n =
-    sym (mapPfinComp s)
-    ∙ cong (mapPfin (λ x → x .fst n)) (p 0)
-    ∙ mapPfinComp {g = λ x → x .fst n}{λ x → x .fst 0} t
-
-  complete' : ∀ s t 
-    → (∀ n → mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) s
-                     ≡ mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) t)
-    → τ-1 s ≡ τ-1 t
-  complete' s t p = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin2 _ _ _))
-    (funExt (λ { zero → Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _))
-                 (funExt (λ { zero → refl ;
-                              (suc n) →
-                                mapPfinComp  (mapPfin (proj iPfin2-ch 0) s)
-                                ∙ mapPfinComp s
-                                ∙ cong (λ f → mapPfin f s) (funExt (λ z → z .fst 0 .snd n))
-                                ∙ equal-proj s t p n
-                                ∙ cong (λ f → mapPfin f t) (funExt (λ z → sym (z .fst 0 .snd n)))
-                                ∙ sym (mapPfinComp t)
-                                ∙ sym (mapPfinComp  (mapPfin (proj iPfin2-ch 0) t))})) ;
-                 (suc n) → antisym⊆
-                   (λ x mx → ∥rec∥ (snd ((x ∈ₛ mapPfin (iMapPfin2 n) (mapPfin (proj iPfin2-ch (suc n)) t))))
-                     (λ { (y , my , eq) → subst (λ z → ⟨ x ∈ₛ z ⟩)
-                                                 (sym (mapPfinComp t
-                                                   ∙ cong (λ f → mapPfin f t) (funExt (λ z → z .snd n))
-                                                   ∙ sym (p n)
-                                                   ∙ cong (λ f → mapPfin f s) (sym (funExt (λ z → z .snd n)))
-                                                   ∙ sym (mapPfinComp s)))
-                                                 (subst (λ z → ⟨ z ∈ₛ mapPfin (iMapPfin2 n) (mapPfin (proj iPfin2-ch (suc n)) s) ⟩)
-                                                        eq
-                                                        (∈ₛmapPfin (iMapPfin2 n) y (mapPfin (proj iPfin2-ch (suc n)) s) my)) })
-                     (pre∈ₛmapPfin (iMapPfin2 n) x (mapPfin (proj iPfin2-ch (suc n)) s) mx))
-                   (λ x mx → ∥rec∥ (snd ((x ∈ₛ mapPfin (iMapPfin2 n) (mapPfin (proj iPfin2-ch (suc n)) s))))
-                     (λ { (y , my , eq) → subst (λ z → ⟨ x ∈ₛ z ⟩)
-                                                 (sym (mapPfinComp s
-                                                   ∙ cong (λ f → mapPfin f s) (funExt (λ z → z .snd n))
-                                                   ∙ p n 
-                                                   ∙ cong (λ f → mapPfin f t) (sym (funExt (λ z → z .snd n)))
-                                                   ∙ sym (mapPfinComp t)))
-                                                 (subst (λ z → ⟨ z ∈ₛ mapPfin (iMapPfin2 n) (mapPfin (proj iPfin2-ch (suc n)) t) ⟩)
-                                                        eq
-                                                        (∈ₛmapPfin (iMapPfin2 n) y (mapPfin (proj iPfin2-ch (suc n)) t) my)) })
-                     (pre∈ₛmapPfin (iMapPfin2 n) x (mapPfin (proj iPfin2-ch (suc n)) t) mx))}))
-
-  complete : (x y1 y2 : ωPfin2) (z : ℕ → ωPfin2)
-    → (∀ n → (z n ≡ y1) ⊎ (z n ≡ y2))
-    → (∀ n → z n .fst n ≡ x .fst n)
-    → ⟨ x ∈ₛ (η y1 ∪ η y2) ⟩
-  complete x y1 y2 z p q = subst (λ z → ⟨ x ∈ₛ z ⟩) (τ-1inj s t (complete' s t eq)) (inl ∣ refl ∣)
-    where
-      t : Pfin ωPfin2
-      t = η y1 ∪ η y2
-
-      s : Pfin ωPfin2
-      s = η x ∪ t
-
-      sub : ∀ n → mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) s
-                     ⊆ mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) t
-      sub n a = ∥rec∥ propTruncIsProp
-        (λ { (inj₁ r) →
-                   ∥map∥ (λ eq → map⊎ (λ eq' → ∣ eq ∙ sym (q n) ∙ cong (λ w → w .fst n) eq' ∣)
-                                      (λ eq' → ∣ eq ∙ sym (q n) ∙ cong (λ w → w .fst n) eq' ∣)
-                                      (p n))
-                         r ;
-             (inj₂ r) → r })
-
-      eq : ∀ n → mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) s
-                     ≡ mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) t
-      eq n = antisym⊆ (sub n) (λ a → inr)
-
---   complete-test : (x y1 y2 : ωPfin2) (z : ℕ → ωPfin2)
+--   complete : (x y1 y2 : ωPfin2) (z : ℕ → ωPfin2)
 --     → (∀ n → (z n ≡ y1) ⊎ (z n ≡ y2))
---     → (∀ n → z n .fst 0 .fst n ≡ x .fst 0 .fst n)
+--     → (∀ n → z n .fst n ≡ x .fst n)
 --     → ⟨ x ∈ₛ (η y1 ∪ η y2) ⟩
---   complete-test x y1 y2 z p q = subst (λ z → ⟨ x ∈ₛ z ⟩) (τ-1inj s t (complete' s t eq2 eq)) (inl ∣ refl ∣)
+--   complete x y1 y2 z p q = subst (λ z → ⟨ x ∈ₛ z ⟩) (τ-1inj s t (complete' s t eq)) (inl ∣ refl ∣)
 --     where
 --       t : Pfin ωPfin2
 --       t = η y1 ∪ η y2
--- 
+
 --       s : Pfin ωPfin2
 --       s = η x ∪ t
--- 
+
 --       sub : ∀ n → mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) s
 --                      ⊆ mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) t
 --       sub n a = ∥rec∥ propTruncIsProp
 --         (λ { (inj₁ r) →
---                    ∥map∥ (λ eq → map⊎ (λ eq' → {!!})
---                                       (λ eq' → {!!})
+--                    ∥map∥ (λ eq → map⊎ (λ eq' → ∣ eq ∙ sym (q n) ∙ cong (λ w → w .fst n) eq' ∣)
+--                                       (λ eq' → ∣ eq ∙ sym (q n) ∙ cong (λ w → w .fst n) eq' ∣)
 --                                       (p n))
 --                          r ;
 --              (inj₂ r) → r })
--- 
+
 --       eq : ∀ n → mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) s
 --                      ≡ mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) t
 --       eq n = antisym⊆ (sub n) (λ a → inr)
--- 
---       sub2 : (n : ℕ) → mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst 0 .fst n) s
---                      ⊆ mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst 0 .fst n) t
---       sub2 n a = ∥rec∥ propTruncIsProp
---         (λ { (inj₁ r) →
---                    ∥map∥ (λ eq → map⊎ (λ eq' → ∣ eq ∙ sym (q n) ∙ {!eq'!} ∣)
---                                       (λ eq' → {!q n!})
---                                       (p 0))
---                          r ;
---              (inj₂ r) → r })
--- 
---       eq2 : ∀ n → mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst 0 .fst n) s
---                      ≡ mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst 0 .fst n) t
---       eq2 n = antisym⊆ (sub2 n) (λ a → inr)
 
-  llpo : (a : ℕ → Bool) → isProp (Σ[ n ∈ ℕ ] a n ≡ true)
-    → (∀ n → isEven n → a n ≡ false) ⊎ (∀ n → isOdd n → a n ≡ false) 
-  llpo a aP = {!!}
-    where
-      y1 : ωPfin2
-      y1 = path2-ch
+-- --   complete-test : (x y1 y2 : ωPfin2) (z : ℕ → ωPfin2)
+-- --     → (∀ n → (z n ≡ y1) ⊎ (z n ≡ y2))
+-- --     → (∀ n → z n .fst 0 .fst n ≡ x .fst 0 .fst n)
+-- --     → ⟨ x ∈ₛ (η y1 ∪ η y2) ⟩
+-- --   complete-test x y1 y2 z p q = subst (λ z → ⟨ x ∈ₛ z ⟩) (τ-1inj s t (complete' s t eq2 eq)) (inl ∣ refl ∣)
+-- --     where
+-- --       t : Pfin ωPfin2
+-- --       t = η y1 ∪ η y2
+-- -- 
+-- --       s : Pfin ωPfin2
+-- --       s = η x ∪ t
+-- -- 
+-- --       sub : ∀ n → mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) s
+-- --                      ⊆ mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) t
+-- --       sub n a = ∥rec∥ propTruncIsProp
+-- --         (λ { (inj₁ r) →
+-- --                    ∥map∥ (λ eq → map⊎ (λ eq' → {!!})
+-- --                                       (λ eq' → {!!})
+-- --                                       (p n))
+-- --                          r ;
+-- --              (inj₂ r) → r })
+-- -- 
+-- --       eq : ∀ n → mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) s
+-- --                      ≡ mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst n) t
+-- --       eq n = antisym⊆ (sub n) (λ a → inr)
+-- -- 
+-- --       sub2 : (n : ℕ) → mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst 0 .fst n) s
+-- --                      ⊆ mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst 0 .fst n) t
+-- --       sub2 n a = ∥rec∥ propTruncIsProp
+-- --         (λ { (inj₁ r) →
+-- --                    ∥map∥ (λ eq → map⊎ (λ eq' → ∣ eq ∙ sym (q n) ∙ {!eq'!} ∣)
+-- --                                       (λ eq' → {!q n!})
+-- --                                       (p 0))
+-- --                          r ;
+-- --              (inj₂ r) → r })
+-- -- 
+-- --       eq2 : ∀ n → mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst 0 .fst n) s
+-- --                      ≡ mapPfin (λ (x : ωLimit iPfin2-ch) → x .fst 0 .fst n) t
+-- --       eq2 n = antisym⊆ (sub2 n) (λ a → inr)
+
+--   llpo : (a : ℕ → Bool) → isProp (Σ[ n ∈ ℕ ] a n ≡ true)
+--     → (∀ n → isEven n → a n ≡ false) ⊎ (∀ n → isOdd n → a n ≡ false) 
+--   llpo a aP = {!!}
+--     where
+--       y1 : ωPfin2
+--       y1 = path2-ch
       
-      y2 : ωPfin2
-      y2 = path2?-ch a
+--       y2 : ωPfin2
+--       y2 = path2?-ch a
 
 
 
-{-    
-      y11 : ∀ n → iPfin n
-      y11 zero = tt
-      y11 (suc n) = η (y11 n)
+-- {-    
+--       y11 : ∀ n → iPfin n
+--       y11 zero = tt
+--       y11 (suc n) = η (y11 n)
 
-      y11-res : ∀ n → iMapPfin n (y11 (suc n)) ≡ y11 n
-      y11-res zero = refl
-      y11-res (suc n) = cong η (y11-res n)
+--       y11-res : ∀ n → iMapPfin n (y11 (suc n)) ≡ y11 n
+--       y11-res zero = refl
+--       y11-res (suc n) = cong η (y11-res n)
 
-      y11-ch : ωPfin
-      y11-ch = y11 , y11-res
+--       y11-ch : ωPfin
+--       y11-ch = y11 , y11-res
 
-      y1 : ∀ n → iPfin2 n
-      y1 zero = y11-ch
-      y1 (suc n) = η (y1 n)
+--       y1 : ∀ n → iPfin2 n
+--       y1 zero = y11-ch
+--       y1 (suc n) = η (y1 n)
 
-      y1-res : ∀ n → iMapPfin2 n (y1 (suc n)) ≡ y1 n
-      y1-res zero = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _)) (funExt y11-res)
-      y1-res (suc n) = cong η (y1-res n)
+--       y1-res : ∀ n → iMapPfin2 n (y1 (suc n)) ≡ y1 n
+--       y1-res zero = Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _)) (funExt y11-res)
+--       y1-res (suc n) = cong η (y1-res n)
 
-      y1-ch : ωPfin2
-      y1-ch = y1 , y1-res
+--       y1-ch : ωPfin2
+--       y1-ch = y1 , y1-res
 
-      y21 : ∀ n → iPfin n
-      y21 n with true-before? a n
-      ... | yes (k , k≤n , eq) = iPfinEmb k n k≤n (y11 k)
-      ... | no _ = y11 n
+--       y21 : ∀ n → iPfin n
+--       y21 n with true-before? a n
+--       ... | yes (k , k≤n , eq) = iPfinEmb k n k≤n (y11 k)
+--       ... | no _ = y11 n
 
-      y21-res : ∀ n → iMapPfin n (y21 (suc n)) ≡ y21 n
-      y21-res n with true-before? a (suc n)
-      ... | yes (k , lek , eqk) with true-before? a n
-      ... | yes (l , lel , eql) =
-        cong (iMapPfin n) (iPfinEmb≡ (cong fst (aP (k , eqk) (l , eql))) lek (≤-suc lel) y11)
-        ∙ iPfinEmb-res l n lel (y11 l)
-      ... | no ¬p =
-        cong (iMapPfin n)
-          (iPfinEmb≡ {!!} lek ≤-refl y11
-          ∙ cong η
-            (cong (λ p → iPfinEmb n n p (y11 n)) {!!}
-            ∙ iPfinEmbRefl n (y11 n)))
-        ∙ y11-res n
-      y21-res n | no ¬p with true-before? a n
-      ... | yes (k , k≤n , eq) = ⊥-rec (¬p (k , ≤-suc k≤n , eq))
-      ... | no _ = y11-res n
+--       y21-res : ∀ n → iMapPfin n (y21 (suc n)) ≡ y21 n
+--       y21-res n with true-before? a (suc n)
+--       ... | yes (k , lek , eqk) with true-before? a n
+--       ... | yes (l , lel , eql) =
+--         cong (iMapPfin n) (iPfinEmb≡ (cong fst (aP (k , eqk) (l , eql))) lek (≤-suc lel) y11)
+--         ∙ iPfinEmb-res l n lel (y11 l)
+--       ... | no ¬p =
+--         cong (iMapPfin n)
+--           (iPfinEmb≡ {!!} lek ≤-refl y11
+--           ∙ cong η
+--             (cong (λ p → iPfinEmb n n p (y11 n)) {!!}
+--             ∙ iPfinEmbRefl n (y11 n)))
+--         ∙ y11-res n
+--       y21-res n | no ¬p with true-before? a n
+--       ... | yes (k , k≤n , eq) = ⊥-rec (¬p (k , ≤-suc k≤n , eq))
+--       ... | no _ = y11-res n
 
-      y21-ch : ωPfin
-      y21-ch = y21 , y21-res
+--       y21-ch : ωPfin
+--       y21-ch = y21 , y21-res
 
 
-      y21-ø : a 0 ≡ true → ∀ n → y21 n ≡ void n
-      y21-ø eq0 n with true-before? a n
-      y21-ø eq0 zero | yes (k , le , eqk) =
-        iPfinEmb≡ (cong fst (aP (k , eqk) (0 , eq0))) le zero-≤ y11
-      y21-ø eq0 (suc n) | yes (k , le , eqk) = 
-        iPfinEmb≡ (cong fst (aP (k , eqk) (0 , eq0))) le zero-≤ y11
-      ... | no p = ⊥-rec (p (0 , zero-≤ , eq0))
+--       y21-ø : a 0 ≡ true → ∀ n → y21 n ≡ void n
+--       y21-ø eq0 n with true-before? a n
+--       y21-ø eq0 zero | yes (k , le , eqk) =
+--         iPfinEmb≡ (cong fst (aP (k , eqk) (0 , eq0))) le zero-≤ y11
+--       y21-ø eq0 (suc n) | yes (k , le , eqk) = 
+--         iPfinEmb≡ (cong fst (aP (k , eqk) (0 , eq0))) le zero-≤ y11
+--       ... | no p = ⊥-rec (p (0 , zero-≤ , eq0))
 
-      y21-η : a 0 ≡ false → ∀ n → y21 n ≡ {!!}
+--       y21-η : a 0 ≡ false → ∀ n → y21 n ≡ {!!}
 
-{-
-      y21-ø : y21 1 ≡ ø → ∀ n → y21 n ≡ void n
-      y21-ø eq n with true-before? a n
-      y21-ø eq zero | yes (zero , lek , eqk) = refl
-      y21-ø eq (suc n) | yes (zero , lek , eqk) = refl
-      y21-ø eq zero | yes (suc k , lek , eqk) = ⊥-rec (¬-<-zero lek)
-      y21-ø eq (suc n) | yes (suc k , lek , eqk) = {!!}
-      ... | no p = {!!}
--}
+-- {-
+--       y21-ø : y21 1 ≡ ø → ∀ n → y21 n ≡ void n
+--       y21-ø eq n with true-before? a n
+--       y21-ø eq zero | yes (zero , lek , eqk) = refl
+--       y21-ø eq (suc n) | yes (zero , lek , eqk) = refl
+--       y21-ø eq zero | yes (suc k , lek , eqk) = ⊥-rec (¬-<-zero lek)
+--       y21-ø eq (suc n) | yes (suc k , lek , eqk) = {!!}
+--       ... | no p = {!!}
+-- -}
 
-      y2 : ∀ n → iPfin2 n
-      y2 zero = y21-ch
-      y2 (suc n) = {!y21 1!}
+--       y2 : ∀ n → iPfin2 n
+--       y2 zero = y21-ch
+--       y2 (suc n) = {!y21 1!}
 
-      y2-ch : ωPfin2
-      y2-ch = {!!} , {!!}
--}
+--       y2-ch : ωPfin2
+--       y2-ch = {!!} , {!!}
+-- -}
+-- -}
