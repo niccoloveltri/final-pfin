@@ -1,6 +1,6 @@
 {-# OPTIONS --cubical --no-import-sorts #-}
 
-module FinalCoalgPfin.Set.AsSetQuot where
+module FinalCoalg.InTypesAsSetQuot where
 
 open import Size
 open import Cubical.Core.Everything
@@ -15,11 +15,13 @@ open import Cubical.Data.Sigma
 open import Cubical.Data.List renaming (map to mapList) hiding ([_])
 open import Cubical.Data.Empty renaming (elim to ⊥-elim; rec to ⊥-rec)
 open import Cubical.Relation.Binary
-open import Preliminaries
+open import Basics
 open import ListRelations
+open import ListStuff
+open import SetoidStuff
 open import Trees
 open import Pfin.AsSetQuot
-open import FinalCoalgPfin.Setoid.AsCoindType
+open import FinalCoalg.InSetoid
 open BinaryRelation
 
 -- the final coalgebra of PfinQ as quotient of trees
@@ -34,8 +36,8 @@ open BinaryRelation
   ∥map∥ (λ { (u , mu , r) → _ , ∈mapList mu , sym eq ∙ eq/ _ _ r}) (p t mt)
 
 ξ : νPfinQ → PfinQ νPfinQ
-ξ = recQ squash/ (λ t → [ mapList [_] (force t) ])
-  λ t t' p → eq/ _ _ (ξRel _ _ (forceExt p .fst) , ξRel _ _ (forceExt p .snd))
+ξ = recQ squash/ (λ t → [ mapList [_] (subtrees t) ])
+  λ t t' p → eq/ _ _ (ξRel _ _ (subtreesE p .fst) , ξRel _ _ (subtreesE p .snd))
 
 -- two quotients of function spaces
 [_⇒PfinQ_] : (A B : Type) → Type
@@ -56,7 +58,7 @@ anaTreeRelCoalg' : ∀{X}(c c' : X → List X)
   → DRelator (ExtEq j) (mapList (anaTree c ∞) (c x))
                         (mapList (anaTree c' ∞) (c' x))
 
-forceExt (anaTreeRelCoalg c c' rc j x) {k} =
+subtreesE (anaTreeRelCoalg c c' rc j x) {k} =
   anaTreeRelCoalg' c c' rc k x ,
   anaTreeRelCoalg' c' c (λ z → symRelator (rc z)) k x
 
@@ -79,7 +81,7 @@ anaPfinQ' =
 -- the construction of the anamorphism;
 -- for this to work, we assume that θ has a section, i.e. it is a
 -- split epimorphism; this is equivalent to full axiom of choice (the
--- equivalence is proved in the end of the file Preliminaries.agda)
+-- equivalence is proved in the end of the file AxiomChoice.agda)
 
 module _ (θInv : ∀ A {B} (R : B → B → Type) → (A → B / R) → [ A ⇒ B ]/ R)
          (sectionθ : ∀ A {B} (R : B → B → Type) → section (θ A R) (θInv A R)) where
@@ -96,11 +98,20 @@ module _ (θInv : ∀ A {B} (R : B → B → Type) → (A → B / R) → [ A ⇒
   θ2 : ∀{X} → [ X ⇒νPfinQ] → X → νPfinQ
   θ2 = θ _ _
 
+  θ2-ns : ∀{X} → [ X ⇒νPfinQ] → X → νPfinQ
+  θ2-ns = θ _ _
+
   θ2Inv : ∀ {X} → (X → νPfinQ) → [ X ⇒νPfinQ]
   θ2Inv = θInv _ _ 
 
+  θ2Inv-ns : ∀ {X} → (X → νPfinQ) → [ X ⇒νPfinQ]
+  θ2Inv-ns = θInv _ _ 
+
   sectionθ2 : ∀{X} (f : X → νPfinQ) → θ2 (θ2Inv f) ≡ f
   sectionθ2 = sectionθ _ _
+
+  sectionθ2-ns : ∀{X} (f : X → νPfinQ) → θ2-ns (θ2Inv-ns f) ≡ f
+  sectionθ2-ns = sectionθ _ _
 
   anaPfinQ : {X : Type} (c : X → PfinQ X)
     → X → νPfinQ
@@ -119,7 +130,9 @@ module _ (θInv : ∀ A {B} (R : B → B → Type) → (A → B / R) → [ A ⇒
   anaPfinQEq c x =
     anaPfinQEq' (θ1Inv c) x ∙ cong (λ f → mapPfinQ (anaPfinQ c) (f x)) (sectionθ1 c)
 
+
 -- uniqueness
+
   anaPfinQUniq'' : {X : Type} (Xset : isSet X) (c : X → List X)
     → (f : [ X ⇒νPfinQ]) (feq : ∀ x → ξ (θ2 f x) ≡ mapPfinQ (θ2 f) [ c x ])
     → ∀ x → θ2 f x ≡ anaPfinQ' [ c ] x
@@ -158,8 +171,8 @@ module _ (θInv : ∀ A {B} (R : B → B → Type) → (A → B / R) → [ A ⇒
       
   anaPfinQUniq : {X : Type} (Xset : isSet X) (c : X → PfinQ X)
     → (f : X → νPfinQ) (feq : ∀ x → ξ (f x) ≡ mapPfinQ f (c x))
-    → ∀ x → f x ≡ anaPfinQ c x
-  anaPfinQUniq Xset c f feq x =
+    → f ≡ anaPfinQ c
+  anaPfinQUniq Xset c f feq = funExt λ x → 
     anaPfinQUniq' Xset (θ1Inv c) f
       (λ y → feq y ∙ λ i → mapPfinQ f (sectionθ1 c (~ i) y))
       x

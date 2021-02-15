@@ -1,47 +1,88 @@
 {-# OPTIONS --cubical --no-import-sorts #-}
 
--- ================================================================
--- Final Coalgebra of the Finite Powerset Functor in Agda
--- ================================================================
+-- =================================================================
+-- Type Theoretic Constructions of the Final Coalgebra of the Finite
+-- Powerset Functor
+--
+-- Niccolò Veltri
+-- =================================================================
 
 module Everything where
 
 -- some preliminaries
-import Preliminaries
+import Basics
+
+-- basic list stuff
+import ListStuff
+
+-- setoids
+import SetoidStuff
+
+-- alternative formulation of axiom of choice
+import AxiomChoice
 
 -- relation liftings on lists
 import ListRelations
 
--- non-wellfound finite-branchin trees
+-- non-wellfounded trees with ordered finite branching
 import Trees
 
+-- =================================================================
 
--- finite powerset using HITs:
-
--- -- as the free join semilattice on a type
-import Pfin.AsFreeJoinSemilattice
+-- finite powerset using HITs
 
 -- -- as a set quotient of lists
 import Pfin.AsSetQuot
 
+-- -- as the free join semilattice on a type
+import Pfin.AsFreeJoinSemilattice
+
+-- finite powerset preserves countable intersection (assuming
+-- countable choice)
+import Pfin.PreservesCountableIntersections
+
+-- =================================================================
+
+-- final coalgebra of finite powerset functor in setoids
+import FinalCoalg.InSetoid
+
+-- final coalgebra of finite powerset functor in types
+
+-- -- as a set quotient of trees (assuming axiom of choice)
+import FinalCoalg.InTypesAsSetQuot
+
+-- -- as a coinductive type
+import FinalCoalg.InTypesAsCoindType
+
+-- =================================================================
 
 
--- final coalgebra of finite powerset functor in setoids:
+-- analysis of Worrell's construction
 
--- -- using the conductive type of trees
-import FinalCoalgPfin.Setoid.AsCoindType
+-- -- ω-limits
+import Worrell.Limits
 
--- -- as an (ω+ω)-limit
--- -- (work in progress, so far I have showed that the final coalgebra
--- -- of the finite powerset functor is not an ω-limit)
-import FinalCoalgPfin.Setoid.AsLimit
+-- -- the canonical algebra map of Vω is not surjective (here we use
+-- -- PfinQ instead of Pfin, but we know that the two are equivalent,
+-- -- see Pfin.AsSetQuot)
+import Worrell.NoSurjAlgebra
 
+-- -- assuming the canonical algebra map of Vω is injective implies
+-- -- LLPO
+import Worrell.FromInjectivity
 
+-- -- LLPO and countable choice imply the injectivity of the canonical
+-- -- algebra map of Vω
+import Worrell.ToInjectivity
 
--- final coalgebra of finite powerset functor in types (sets):
+-- -- assuming the canonical projection from Vω2 to Vω is injective
+-- -- implies LLPO, showing that Worrell's construction of the final
+-- -- coalgebra of Pfin as a subset of Vω cannot be done fully
+-- -- constructively
+import Worrell.FromInjectivityOmega
 
--- -- as a set quotient of the type of trees (using axiom of choice)
-import FinalCoalgPfin.Set.AsSetQuot
+-- -- assuming countable choice and injectivity of the canonical
+-- -- algebra map of Vω (or, equivalently, LLPO), we have that Vω2 is
+-- -- the final coalgebra of Pfin
+import Worrell.Finality
 
--- -- as a coinductive type 
-import FinalCoalgPfin.Set.AsCoindType

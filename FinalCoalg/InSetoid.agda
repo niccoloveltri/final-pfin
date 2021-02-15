@@ -1,6 +1,6 @@
 {-# OPTIONS --cubical --no-import-sorts #-}
 
-module FinalCoalgPfin.Setoid.AsCoindType where
+module FinalCoalg.InSetoid where
 
 open import Size
 open import Cubical.Core.Everything
@@ -18,10 +18,11 @@ open import Cubical.Relation.Binary hiding (Rel)
 open BinaryRelation
 open isEquivRel
 
-open import Preliminaries
+open import Basics
+open import SetoidStuff
 open import ListRelations
+open import ListStuff
 open import Trees
-
 
 -- the finite powerset functor on setoids
 
@@ -33,8 +34,8 @@ PfinS (setoid A R propR eqrR) =
 νPfinS : Setoid₀
 νPfinS = setoid (Tree ∞) (ExtEq ∞) isPropExtEq isEquivRelExtEq
 
-forceS : νPfinS →S PfinS νPfinS
-forceS = (λ x → force x) , (λ r → forceExt r)
+subtreesS : νPfinS →S PfinS νPfinS
+subtreesS = (λ x → subtrees x) , (λ r → subtreesE r)
 
 mapPfinS : {S₁ S₂ : Setoid₀} (f : S₁ →S S₂)
   → PfinS S₁ →S PfinS S₂
@@ -59,11 +60,10 @@ module _
   c = cS .mor
   cRel = cS .morRel
 
-
--- the function anaTree is compatible (respects the relations)
+-- the function anaTreeS is compatible (respects the relations)
   anaTreeRel : ∀ {x y} → S .Rel x y → (j : Size)
     → ExtEq j (anaTree c ∞ x) (anaTree c ∞ y)
-  forceExt (anaTreeRel r j) {k} =
+  subtreesE (anaTreeRel r j) {k} =
     (λ x mx →
       ∥map∥ (λ { (y , my , r') →
                anaTree c ∞ y  ,
@@ -85,14 +85,14 @@ module _
   anaPfinS : S →S νPfinS
   anaPfinS = anaTree c ∞ , λ r → anaTreeRel r ∞
 
-  anaPfinSEq : forceS ∘S anaPfinS ≡S mapPfinS anaPfinS ∘S cS
+  anaPfinSEq : subtreesS ∘S anaPfinS ≡S mapPfinS anaPfinS ∘S cS
   anaPfinSEq x = reflRelator (reflExtEq ∞) _
 
 -- uniqueness
   anaPfinUniq' : (fS : S →S νPfinS)
-    → (∀ x → Relator (ExtEq ∞) (force (fS .mor x)) (mapList (fS .mor) (c x)))
+    → (∀ x → Relator (ExtEq ∞) (subtrees (fS .mor x)) (mapList (fS .mor) (c x)))
     → (j : Size) → ∀ x → ExtEq j (fS .mor x) (anaTree c ∞ x)
-  forceExt (anaPfinUniq' fS fSeq j x) {k} =
+  subtreesE (anaPfinUniq' fS fSeq j x) {k} =
     (λ t mt →
       ∥map∥ 
         (λ { (u , mu , r) →  _ , ∈mapList (pre∈mapList mu .snd .fst) ,
@@ -107,7 +107,7 @@ module _
         (fSeq x .snd _ (∈mapList (pre∈mapList mt .snd .fst)))
 
   anaPfinUniq : (fS : S →S νPfinS)
-    → forceS ∘S fS ≡S mapPfinS fS ∘S cS
+    → subtreesS ∘S fS ≡S mapPfinS fS ∘S cS
     → fS ≡S anaPfinS
   anaPfinUniq fS fSeq = anaPfinUniq' fS fSeq ∞
 

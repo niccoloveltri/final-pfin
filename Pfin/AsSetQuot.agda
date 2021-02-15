@@ -10,7 +10,7 @@ open import Cubical.Relation.Everything
 open import Cubical.HITs.PropositionalTruncation as PropTrunc
   renaming (rec to ∥rec∥; map to ∥map∥)
 open import Cubical.HITs.SetQuotients
-  renaming (rec to recQ; rec2 to recQ2)
+  renaming (rec to recQ; rec2 to recQ2; elim to elimQ)
 open import Cubical.Data.Sigma
 open import Cubical.Data.Nat 
 open import Cubical.Data.Bool
@@ -18,11 +18,12 @@ open import Cubical.Data.List renaming (map to mapList) hiding ([_])
 open import Cubical.Data.Sum renaming (map to map⊎; inl to inj₁; inr to inj₂)
 open import Cubical.Data.Empty renaming (elim to ⊥-elim; rec to ⊥-rec)
 open import Cubical.Relation.Binary
-open import Preliminaries
+open import Cubical.Relation.Nullary
+open import Basics
+open import ListStuff
 open import ListRelations
 open import Trees
 open import Pfin.AsFreeJoinSemilattice
-open import Relation.Nullary
 open import Cubical.Data.Nat.Order hiding (eq) renaming (_≤_ to _≤N_)
 
 -- the relation relating lists with the same elements
@@ -42,59 +43,50 @@ isEquivRelSameEls =
 PfinQ : Type → Type
 PfinQ A = List A / SameEls
 
--- many lemmata, mostly about about DRelator _≡_
-DRelatorEq++₁ : {A : Type}{xs ys zs : List A}
-  → DRelator _≡_ xs ys → DRelator _≡_ (xs ++ zs) (ys ++ zs)
-DRelatorEq++₁ {xs = xs}{ys} p x mx with ++∈ {xs = xs} mx
-... | inj₁ mx' = ∥map∥ (λ { (y , my , eq) → y , ∈++₁ my , eq}) (p x mx')
-... | inj₂ mx' = ∣ x , ∈++₂ {xs = ys} mx' , refl ∣
+-- adding an element to a finite subset
+_∷Q_ : ∀ {A} → A → PfinQ A → PfinQ A
+_∷Q_ a = recQ squash/ (λ xs → [ a ∷ xs ])
+  λ { xs ys (p , q) → eq/ _ _
+    ((λ { x here → ∣ x , here , refl ∣ ; x (there m) → ∥map∥ (λ { (y , m' , eq) → y , there m' , eq }) (p x m) }) ,
+     λ { x here → ∣ x , here , refl ∣ ; x (there m) → ∥map∥ (λ { (y , m' , eq) → y , there m' , eq }) (q x m) }) }
 
-DRelatorEq++₂ : {A : Type}{xs ys zs : List A}
-  → DRelator _≡_ ys zs → DRelator _≡_ (xs ++ ys) (xs ++ zs)
-DRelatorEq++₂ {xs = xs} p x mx with ++∈ {xs = xs} mx
-... | inj₁ mx' = ∣ x , ∈++₁ mx' , refl ∣
-... | inj₂ mx' =
-  ∥map∥ (λ { (y , my , eq) → y , ∈++₂ {xs = xs} my , eq }) (p x mx')
+-- membership relation
+_∈Q_ : ∀{A} → A → PfinQ A → hProp₀
+_∈Q_ a = elimQ (λ _ → isSetHProp)
+  (λ xs → ∥ a ∈ xs ∥ , propTruncIsProp)
+  λ xs ys r → Σ≡Prop (λ _ → isPropIsProp)
+    (hPropExt propTruncIsProp propTruncIsProp
+      (∥rec∥ propTruncIsProp (λ m → ∥map∥ (λ { (x , m , eq) → subst (_∈ ys) (sym eq) m }) (r .fst _ m)))
+      (∥rec∥ propTruncIsProp (λ m → ∥map∥ (λ { (x , m , eq) → subst (_∈ xs) (sym eq) m }) (r .snd _ m))))
 
-DRelatorEqCom : {A : Type}(xs ys : List A)
-  → DRelator _≡_ (xs ++ ys) (ys ++ xs)
-DRelatorEqCom xs ys x mx with ++∈ {xs = xs} mx
-... | inj₁ mx' = ∣ x , ∈++₂ {xs = ys} mx' , refl ∣
-... | inj₂ mx' = ∣ x , ∈++₁ mx' , refl ∣
 
-DRelatorEqAss₁ : {A : Type}(xs ys zs : List A)
-  → DRelator _≡_ (xs ++ ys ++ zs) ((xs ++ ys) ++ zs)
-DRelatorEqAss₁ xs ys zs x mx with ++∈ {xs = xs} mx
-... | inj₁ mx' = ∣ x , ∈++₁ (∈++₁ mx') , refl ∣
-... | inj₂ mx' with ++∈ {xs = ys} mx'
-... | inj₁ mx'' = ∣ x , ∈++₁ (∈++₂ {xs = xs} mx'') , refl ∣
-... | inj₂ mx'' = ∣ x , ∈++₂ {xs = xs ++ ys} mx'' , refl ∣
+-- turning a list into a finite subset
+List→Pfin : ∀{A : Type} → List A → Pfin A
+List→Pfin [] = ø
+List→Pfin (x ∷ xs) = η x ∪ List→Pfin xs
 
-DRelatorEqAss₂ : {A : Type}(xs ys zs : List A)
-  → DRelator _≡_ ((xs ++ ys) ++ zs) (xs ++ ys ++ zs)
-DRelatorEqAss₂ xs ys zs x mx with ++∈ {xs = xs ++ ys} mx
-... | inj₂ mx' = ∣ x , ∈++₂ {xs = xs} (∈++₂ {xs = ys} mx') , refl ∣
-... | inj₁ mx' with ++∈ {xs = xs} mx'
-... | inj₁ mx'' = ∣ x , ∈++₁ mx'' , refl ∣
-... | inj₂ mx'' = ∣ x , ∈++₂ {xs = xs} (∈++₁ mx'') , refl ∣
-
-DRelatorEqIdem : {A : Type}(xs : List A)
-  → DRelator _≡_ (xs ++ xs) xs
-DRelatorEqIdem xs x mx with ++∈ {xs = xs} mx
-... | inj₁ mx' = ∣ x , mx' , refl ∣
-... | inj₂ mx' = ∣ x , mx' , refl ∣
-
-DRelatorEqNr : {A : Type}(xs : List A)
-  → DRelator _≡_ (xs ++ []) xs
-DRelatorEqNr xs x mx with ++∈ {xs = xs} mx
-... | inj₁ mx' = ∣ x , mx' , refl ∣
-... | inj₂ ()
-
+-- this functions is a monoid morphism (turns ++ into ∪)
 List→Pfin++ : {A : Type}(xs ys : List A)
   → List→Pfin (xs ++ ys) ≡ List→Pfin xs ∪ List→Pfin ys
 List→Pfin++ [] ys = sym (com _ _ ∙ nr _)
 List→Pfin++ (x ∷ xs) ys = cong (η x ∪_) (List→Pfin++ xs ys) ∙ ass _ _ _
 
+
+-- properties of membership in the finite subset associated to a list
+∈ₛList→Pfin : ∀{A : Type} (xs : List A){a : A}
+  → ⟨ a ∈ₛ List→Pfin xs ⟩ → ∥ a ∈ xs ∥
+∈ₛList→Pfin (x ∷ xs) = ∥rec∥ propTruncIsProp
+  λ { (inj₁ p) → ∥map∥ (λ eq → subst (_∈ _) (sym eq) here) p
+    ; (inj₂ p) → ∥map∥ there (∈ₛList→Pfin xs p)} 
+
+List→Pfin∈ : ∀{A : Type} (xs : List A){a : A}
+  → a ∈ xs → ⟨ a ∈ₛ List→Pfin xs ⟩
+List→Pfin∈ (x ∷ xs) here = inl ∣ refl ∣
+List→Pfin∈ (x ∷ xs) (there p) = inr (List→Pfin∈ xs p)
+
+
+-- the two presentation of finite powerset (as a quotient and as the
+-- free join semilattice) are equivalent
 List→PfinRel : ∀{A}{xs ys : List A}
   → DRelator _≡_ xs ys → PfinDRel _≡_ (List→Pfin xs) (List→Pfin ys)
 List→PfinRel p x mx =
@@ -103,8 +95,6 @@ List→PfinRel p x mx =
       ∥map∥ (λ { (y , my , eq) → (y , List→Pfin∈ _ my , eq) }) (p x mx'))
     (∈ₛList→Pfin _ mx)
 
--- the two presentation of finite powerset (as a quotient and as the
--- free join semilattice) are equal
 PfinQ→Pfin : ∀{A} → PfinQ A → Pfin A
 PfinQ→Pfin = recQ trunc List→Pfin
     λ xs ys p → PfinEq→Eq (List→PfinRel (p .fst) , List→PfinRel (p .snd))
@@ -150,7 +140,7 @@ Pfin≡PfinQ : ∀{A} → Pfin A ≡ PfinQ A
 Pfin≡PfinQ =
   isoToPath (iso Pfin→PfinQ PfinQ→Pfin PfinQ→Pfin→PfinQ Pfin→PfinQ→Pfin)
 
--- action on functions of PfinQ
+-- PfinQ action on functions 
 DRelatorMapList : {A B : Type} (f : A → B) {xs ys : List A}
   → DRelator _≡_ xs ys → DRelator _≡_ (mapList f xs) (mapList f ys)
 DRelatorMapList f p x mx with pre∈mapList mx
@@ -161,45 +151,69 @@ mapPfinQ : ∀{A B} (f : A → B) → PfinQ A → PfinQ B
 mapPfinQ f = recQ squash/ (λ xs → [ mapList f xs ])
   λ xs ys p → eq/ _ _ (DRelatorMapList f (p .fst) , DRelatorMapList f (p .snd))
 
-{-
--- size
+mapPfinQComp : ∀{A B C} {g : B → C} {f : A → B} (x : PfinQ A)
+  → mapPfinQ g (mapPfinQ f x) ≡ mapPfinQ (g ∘ f) x
+mapPfinQComp = elimProp (λ _ → squash/ _ _)
+  (λ xs → cong [_] (mapListComp xs))
 
-module _ {A : Type} (decEq : (x y : A) → Dec (x ≡ y)) where
+pre∈mapPfinQ : {A B : Type} {f : A → B} {b : B} (s : PfinQ A)
+  → ⟨ b ∈Q mapPfinQ f s ⟩ → ∃[ a ∈ A ] ⟨ a ∈Q s ⟩ × (f a ≡ b)
+pre∈mapPfinQ = elimProp (λ _ → isPropΠ (λ _ → propTruncIsProp))
+  λ xs → ∥map∥ (λ m → _ , ∣ pre∈mapList m .snd .fst ∣ , pre∈mapList m .snd .snd) 
 
-  dec∈ : ∀ (x : A) xs → Dec (x ∈ xs)
-  dec∈ x [] = no (λ ())
-  dec∈ x (y ∷ xs) with decEq x y
-  ... | yes p = yes (hereEq p)
-  ... | no ¬p with dec∈ x xs
-  ... | no ¬q = no (λ { here → ¬p refl ; (there m) → ¬q m })
-  ... | yes p = yes (there p)
+-- the size of a finite subset, which we can define if the carrier
+-- type has decidable equality
+size : {A : Type} (decA : (x y : A) → Dec (x ≡ y))
+  → PfinQ A → ℕ
+size decA = recQ isSetℕ
+  (λ xs → length (removeDups decA xs))
+  λ xs ys r → ≤-antisym (lengthDupFree (removeDups decA xs) (removeDups decA ys)
+                                        (dupFreeRemoveDups decA xs) (dupFreeRemoveDups decA ys)
+                                        λ x m → ∥map∥ (λ { (y , m , eq) → y , ∈removeDups decA ys m , eq}) (r .fst _ (removeDups∈ decA xs m)))
+                         (lengthDupFree (removeDups decA ys) (removeDups decA xs)
+                                        (dupFreeRemoveDups decA ys) (dupFreeRemoveDups decA xs)
+                                        λ x m → ∥map∥ (λ { (y , m , eq) → y , ∈removeDups decA xs m , eq}) (r .snd _ (removeDups∈ decA ys m)))
 
-  lengthNoDup' : (n : ℕ) (xs : List A) → length xs ≤N n → ℕ
-  lengthNoDup' zero [] eq = zero
-  lengthNoDup' zero (x ∷ xs) eq = ⊥-elim {A = λ _ → ℕ} (snotz (≤-antisym {m = suc (length xs)} eq zero-≤))
-  lengthNoDup' (suc n) [] eq = zero
-  lengthNoDup' (suc n) (x ∷ xs) eq with dec∈ x xs
-  ... | no ¬p = suc (lengthNoDup' n xs (pred-≤-pred eq))
-  ... | yes p = lengthNoDup' n (remove xs p) (≤-trans (subst (length (remove xs p) ≤N_) (sym (lengthRemove p)) (≤-suc ≤-refl)) (pred-≤-pred eq))
+-- the size of (x ∷Q s)
+size∷Q' : {A : Type} (decA : (x y : A) → Dec (x ≡ y))
+  → {x : A} (xs : List A) → (∥ x ∈ xs ∥ → ⊥)
+  → size decA (x ∷Q [ xs ]) ≡ suc (size decA [ xs ])
+size∷Q' decA {x} xs m with decMem decA x xs
+... | yes (x' , m' , eq) = ⊥-rec (m ∣ subst (_∈ xs) (sym eq) m' ∣)
+... | no ¬p = refl
 
-  lengthNoDup : List A → ℕ
-  lengthNoDup xs = lengthNoDup' (length xs) xs ≤-refl
+size∷Q : {A : Type} (decA : (x y : A) → Dec (x ≡ y))
+  → {x : A} (s : PfinQ A) → (⟨ x ∈Q s ⟩ → ⊥)
+  → size decA (x ∷Q s) ≡ suc (size decA s)
+size∷Q decA = elimProp (λ _ → isPropΠ (λ _ → isSetℕ _ _)) (size∷Q' decA)
 
-  lengthNoDupEq' : (n : ℕ) (xs ys : List A)
-    → (px : length xs ≤N n) (py : length ys ≤N n)
-    → SameEls xs ys
-    → lengthNoDup' n xs px ≡ lengthNoDup' n ys py
-  lengthNoDupEq' zero [] [] px py s = refl
-  lengthNoDupEq' zero [] (x ∷ ys) px py s = ⊥-elim {A = λ _ → zero ≡ ⊥-elim {A = λ _ → ℕ} (snotz (≤-antisym py zero-≤))} (snotz (≤-antisym {m = suc (length ys)} py zero-≤))
-  lengthNoDupEq' zero (x ∷ xs) ys px py s = ⊥-elim {A = λ _ → ⊥-elim {A = λ _ → ℕ} (snotz (≤-antisym px zero-≤)) ≡ lengthNoDup' zero ys py} (snotz (≤-antisym {m = suc (length xs)} px zero-≤))
-  lengthNoDupEq' (suc n) [] ys px py s = {!!}
-  lengthNoDupEq' (suc n) (x ∷ xs) ys px py s with dec∈ x xs
-  ... | no ¬m = {!!}
-  ... | yes m = {!!}
+-- the size of (mapPfinQ f s)
+sizeMapPfinQ : {A B : Type} (decA : (x y : A) → Dec (x ≡ y))
+  → (decB : (x y : B) → Dec (x ≡ y))
+  → {f : A → B} (injf : ∀ x y → f x ≡ f y → x ≡ y) (s : PfinQ A)
+  → size decB (mapPfinQ f s) ≡ size decA s
+sizeMapPfinQ decA decB injf = elimProp (λ _ → isSetℕ _ _)
+  (λ xs → cong length (removeDupMapList decA decB injf xs)
+          ∙ lengthMapList (removeDups decA xs))
 
 
-  size : PfinQ A → ℕ
-  size = recQ isSetℕ lengthNoDup {!!}
- 
 
--}
+-- if path equality on A is decidable, then also path equality on PfinQ A
+-- is decidable
+PfinQDecEq' : {A : Type}
+  → ((x y : A) → Dec (x ≡ y))
+  → (xs ys : List A) → Dec (_≡_ {A = PfinQ A} [ xs ] [ ys ])
+PfinQDecEq'  decA xs ys with decRelator decA xs ys
+... | yes p = yes (eq/ _ _ p)
+... | no ¬p = no (λ p → ¬p (effective isPropSameEls isEquivRelSameEls _ _ p))
+
+PfinQDecEq : {A : Type}
+  → ((x y : A) → Dec (x ≡ y))
+  → (x y : PfinQ A) → Dec (x ≡ y)
+PfinQDecEq decA =
+  elimProp2 (λ _ _ → isPropDec (squash/ _ _))
+             (PfinQDecEq' decA)
+
+
+
+
