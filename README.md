@@ -16,3 +16,5 @@ functor, but the proof of finality requires the assumption of the axiom of choic
 paper with an analysis of a classical construction by James Worrell, and show that its adaptation to
 our constructive setting requires the presence of classical axioms such as countable choice and the
 lesser limited principle of omniscience.
+
+The file [Everything.agda](https://github.com/niccoloveltri/final-pfin/blob/main/Everything.agda) contains the whole Agda development.
