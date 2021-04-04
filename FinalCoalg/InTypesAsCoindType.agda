@@ -22,6 +22,7 @@ open BinaryRelation
 
 -- final coalgebra of Pfin as a coinductive type
 record νPfin (i : Size) : Type where
+  constructor buildP
   coinductive
   field
     subtreesP : {j : Size< i} → Pfin (νPfin j)
@@ -34,25 +35,22 @@ record νPfinB (i : Size) (s t : νPfin i) : Type where
     subtreesPB : {j : Size< i} → PfinRel (νPfinB j) (subtreesP s) (subtreesP t)
 open νPfinB
 
--- bisimilarity is symmetric
-symνPfinB' : ∀ (j : Size) {t t₁} → νPfinB j t t₁ → νPfinB j t₁ t
-subtreesPB (symνPfinB' j b) = subtreesPB b .snd , subtreesPB b .fst
+-- bisimilarity is symmetric and reflexive
+symνPfinB : ∀ (j : Size) {t t₁} → νPfinB j t t₁ → νPfinB j t₁ t
+subtreesPB (symνPfinB j b) = subtreesPB b .snd , subtreesPB b .fst
 
+reflνPfinB : (i : Size) (t : νPfin i) → νPfinB i t t
+subtreesPB (reflνPfinB i t) {j} =
+  (λ x m → ∣ x , m , reflνPfinB j x ∣) ,
+  (λ x m → ∣ x , m , reflνPfinB j x ∣)
 
 -- coinduction principle: bisimilarity implies path equality
 bisim : (i : Size) (t u : νPfin i) → νPfinB i t u → t ≡ u
-bisimP : (i : Size) (t₁ t₂ : Pfin (νPfin i))
-  → PfinDRel (νPfinB i) t₁ t₂ → PfinDRel _≡_ t₁ t₂
-
 subtreesP (bisim s t u b i) {s'} =
-  antisym⊆ {s = subtreesP t}{subtreesP u}
-           (PfinDRel⊆ (subtreesP t) (subtreesP u) (bisimP s' (subtreesP t) (subtreesP u) (subtreesPB b .fst)))
-           (PfinDRel⊆ (subtreesP u) (subtreesP t) (bisimP s' (subtreesP u) (subtreesP t) (subtreesPB b .snd))) 
-           i
-
-bisimP s t u r x mx =
-  ∥map∥ (λ { (y , my , b) → y , my , bisim s x y b}) (r x mx)
-
+  PfinEq→Eq {s = subtreesP t}{subtreesP u}
+    ((λ x m → ∥map∥ (λ { (y , my , b') → y , my , bisim s' x y b' }) (subtreesPB b .fst x m)) ,
+     (λ x m → ∥map∥ (λ { (y , my , b') → y , my , bisim s' x y b' }) (subtreesPB b .snd x m)))
+    i
 
 -- anamorphism
 anaPfin : {X : Type} (c : X → Pfin X) (j : Size) → X → νPfin j
@@ -84,7 +82,7 @@ anaPfinUniqB' c f eq s =
     ((λ { _ () }) , λ { _ () })
     (λ x →
       (λ y → ∥map∥ λ p → _ , ∣ refl ∣ , subst (λ z → νPfinB s z _) (sym p) (anaPfinUniqB c f eq s x)) ,
-      (λ y → ∥map∥ λ p → _ , ∣ refl ∣ , subst (λ z → νPfinB s z _) (sym p) (symνPfinB' s (anaPfinUniqB c f eq s x)))) 
+      (λ y → ∥map∥ λ p → _ , ∣ refl ∣ , subst (λ z → νPfinB s z _) (sym p) (symνPfinB s (anaPfinUniqB c f eq s x)))) 
     (λ {x}{y} → PfinRel∪ (νPfinB s) (mapPfin (f s) x) (mapPfin (f s) y) (mapPfin (anaPfin c s) x) (mapPfin (anaPfin c s) y))
 
 anaPfinUniq : {X : Type} (c : X → Pfin X)
@@ -93,3 +91,13 @@ anaPfinUniq : {X : Type} (c : X → Pfin X)
   → f ≡ anaPfin c ∞
 anaPfinUniq c f eq =
   funExt λ x → bisim ∞ _ _ (anaPfinUniqB c (λ _ → f) (λ { _ _ → eq _ }) ∞ x)
+
+-- νPfin is a set
+
+νPfinIsSet : isSet (νPfin ∞)
+subtreesP (νPfinIsSet x y p q j k) =
+  trunc (subtreesP x) (subtreesP y)
+        (λ i → subtreesP (p i)) (λ i → subtreesP (q i))
+        j k
+
+
