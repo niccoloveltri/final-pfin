@@ -1,4 +1,4 @@
-# Type Theoretic Constructions of the Final Coalgebra of the Finite Powerset Functor
+# Type-Theoretic Constructions of the Final Coalgebra of the Finite Powerset Functor
 ## Niccolò Veltri
 
 The finite powerset functor is a construct frequently employed for the specification of nondeterministic
