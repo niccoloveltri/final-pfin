@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical --no-import-sorts #-}
+{-# OPTIONS --sized-types --cubical --no-import-sorts #-}
 
 module Worrell.ToInjectivity where
 
@@ -6,14 +6,14 @@ open import Cubical.Core.Everything
 open import Cubical.Foundations.Prelude
 open import Cubical.Foundations.Everything
 open import Cubical.Functions.Logic renaming (⊥ to ⊥ₚ)
-open import Cubical.Relation.Everything
-open import Cubical.HITs.PropositionalTruncation as PropTrunc
+open import Cubical.Relation.Binary
+open import Cubical.HITs.PropositionalTruncation as Pr
   renaming (map to ∥map∥; rec to ∥rec∥)
 open import Cubical.HITs.SetQuotients renaming (rec to recQ)
 open import Cubical.Data.Sigma
 open import Cubical.Data.List renaming (map to mapList) hiding ([_])
 open import Cubical.Data.Empty renaming (elim to ⊥-elim; rec to ⊥-rec)
-open import Cubical.Data.Nat renaming (elim to elimNat)
+open import Cubical.Data.Nat hiding (isEven ; isOdd) renaming (elim to elimNat)
 open import Cubical.Data.Nat.Order hiding (eq) renaming (_≤_ to _≤N_; _≟_ to _≟N_)
 open import Cubical.Data.Bool 
 open import Cubical.Data.Sum renaming (map to map⊎; inl to inj₁; inr to inj₂; rec to rec⊎; elim to elim⊎)
@@ -124,7 +124,7 @@ module ToInjective (llpo : (a : ℕ → Bool) → isProp (Σ[ n ∈ ℕ ] a n �
   minj-lem2 x = elimPfinProp (λ t → _ , isPropΠ (λ _ → snd (x ∈ₛ t)))
     (λ p → p 0)
     (λ a p → ∥map∥ (λ q → Σ≡Prop (λ _ → isPropΠ (λ _ → isSetiPfin _ _ _)) (funExt q)) (cc _ p))
-    λ {s1}{s2} ih1 ih2 p → ∥rec∥ propTruncIsProp (lem s1 s2 ih1 ih2) (cc _ p)
+    λ {s1}{s2} ih1 ih2 p → ∥rec∥ Pr.isPropPropTrunc (lem s1 s2 ih1 ih2) (cc _ p)
     where
       lem : (s1 s2 : Pfin Vω)
         → ((∀ n → ⟨ x .fst n ∈ₛ mapPfin (λ x → x .fst n) s1 ⟩) → ⟨ x ∈ₛ s1 ⟩)

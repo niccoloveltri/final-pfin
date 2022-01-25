@@ -6,8 +6,8 @@ open import Cubical.Core.Everything
 open import Cubical.Foundations.Prelude
 open import Cubical.Foundations.Everything
 open import Cubical.Functions.Logic renaming (⊥ to ⊥ₚ)
-open import Cubical.Relation.Everything
-open import Cubical.HITs.PropositionalTruncation as PropTrunc
+open import Cubical.Relation.Binary
+open import Cubical.HITs.PropositionalTruncation as Pr
   renaming (rec to ∥rec∥; map to ∥map∥)
 open import Cubical.HITs.SetQuotients
   renaming ([_] to eqCl; rec to recQ; rec2 to recQ2)
@@ -195,7 +195,7 @@ module _ (cc : (P : ℕ → Type) → (∀ n → ∥ P n ∥) → ∥ (∀ n →
                                            (inr (subst (λ z → ⟨ a 0 ∈ₛ z ⟩)
                                                        (funExt⁻ (cong fst q2) 0)
                                                        (∈ₛmapPfin (λ y → y .fst 0) x v2 mx)))) }))
-                         λ { x@(a , fa≡gb) mx → ∥rec∥ propTruncIsProp
+                         λ { x@(a , fa≡gb) mx → ∥rec∥ Pr.isPropPropTrunc
                                (λ { (inj₁ ma) → inl (∈Pfin×pℕ setC (funs {A} f0 f) injf fa≡gb v1
                                       (subst (λ z → ⟨ a 0 ∈ₛ z ⟩) (funExt⁻ (cong fst (sym q1)) 0) ma))
                                   ; (inj₂ ma) → inr (∈Pfin×pℕ setC (funs {A} f0 f) injf fa≡gb v2

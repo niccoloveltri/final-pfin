@@ -16,7 +16,7 @@ open import Cubical.Relation.Nullary
 --open import Cubical.Data.Unit
 --open import Cubical.Functions.Logic hiding (⊥)
 --open import Cubical.HITs.SetQuotients renaming (rec to recQ)
---open import Cubical.HITs.PropositionalTruncation as PropTrunc
+--open import Cubical.HITs.PropositionalTruncation as Pr
 --  renaming (map to ∥map∥; rec to ∥rec∥)
 --open import Cubical.Relation.Binary hiding (Rel)
 --open BinaryRelation

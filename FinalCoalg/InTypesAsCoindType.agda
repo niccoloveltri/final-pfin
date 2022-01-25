@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical --no-import-sorts #-}
+{-# OPTIONS --sized-types --cubical --no-import-sorts #-}
 
 module FinalCoalg.InTypesAsCoindType where
 
@@ -7,8 +7,8 @@ open import Cubical.Core.Everything
 open import Cubical.Foundations.Prelude
 open import Cubical.Foundations.Everything
 open import Cubical.Functions.Logic renaming (⊥ to ⊥ₚ)
-open import Cubical.Relation.Everything
-open import Cubical.HITs.PropositionalTruncation as PropTrunc
+open import Cubical.Relation.Binary
+open import Cubical.HITs.PropositionalTruncation as Pr
   renaming (map to ∥map∥; rec to ∥rec∥)
 open import Cubical.HITs.SetQuotients renaming (rec to recQ)
 open import Cubical.Data.Sigma

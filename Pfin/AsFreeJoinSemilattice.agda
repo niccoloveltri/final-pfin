@@ -6,8 +6,8 @@ open import Cubical.Core.Everything
 open import Cubical.Foundations.Prelude
 open import Cubical.Foundations.Everything
 open import Cubical.Functions.Logic renaming (⊥ to ⊥ₚ)
-open import Cubical.Relation.Everything
-open import Cubical.HITs.PropositionalTruncation as PropTrunc
+open import Cubical.Relation.Binary
+open import Cubical.HITs.PropositionalTruncation as Pr
   renaming (rec to ∥rec∥; map to ∥map∥)
 open import Cubical.HITs.SetQuotients
   renaming ([_] to eqCl; rec to recQ; rec2 to recQ2)
@@ -66,9 +66,9 @@ x ∈ₛ com s₁ s₂ i =
     i
 x ∈ₛ ass s₁ s₂ s₃ i = 
   ⇔toPath {_} {x ∈ₛ s₁ ⊔ x ∈ₛ s₂ ⊔ x ∈ₛ s₃} {(x ∈ₛ s₁ ⊔ x ∈ₛ s₂) ⊔ x ∈ₛ s₃}
-    (∥rec∥ propTruncIsProp λ { (inj₁ m) → inl (inl m)
+    (∥rec∥ Pr.isPropPropTrunc λ { (inj₁ m) → inl (inl m)
                             ; (inj₂ m) → ∥map∥ (map⊎ inr (λ y → y)) m})
-    (∥rec∥ propTruncIsProp λ { (inj₁ m) → ∥map∥ (map⊎ (λ y → y) inl) m
+    (∥rec∥ Pr.isPropPropTrunc λ { (inj₁ m) → ∥map∥ (map⊎ (λ y → y) inl) m
                             ; (inj₂ m) → inr (inr m)})
     i
 x ∈ₛ idem s i =
@@ -207,8 +207,8 @@ PfinRel R s₁ s₂ =
 isPropPfinRel : ∀{X} (R : X → X → Type₀)
   → ∀ s t → isProp (PfinRel R s t)
 isPropPfinRel R s t =
-  isProp× (isPropΠ (λ _ → isPropΠ (λ _ → propTruncIsProp)))
-          (isPropΠ (λ _ → isPropΠ (λ _ → propTruncIsProp)))  
+  isProp× (isPropΠ (λ _ → isPropΠ (λ _ → Pr.isPropPropTrunc)))
+          (isPropΠ (λ _ → isPropΠ (λ _ → Pr.isPropPropTrunc)))  
 
 PfinRelₚ : ∀{X} (R : X → X → hProp₀)
   → Pfin X → Pfin X → hProp₀
@@ -222,11 +222,11 @@ PfinRel∪ : ∀{X} (R : X → X → Type₀)
   → PfinRel R (s ∪ s') (t ∪ t')
 PfinRel∪ R s s' t t' (p , p') (q , q') =
   (λ x →
-    ∥rec∥ propTruncIsProp
+    ∥rec∥ Pr.isPropPropTrunc
       λ { (inj₁ m) → ∥map∥ (λ { (y , my , r) → y , inl my , r}) (p _ m)
         ; (inj₂ m) → ∥map∥ (λ { (y , my , r) → y , inr my , r}) (q _ m) }) ,
   (λ x →
-    ∥rec∥ propTruncIsProp
+    ∥rec∥ Pr.isPropPropTrunc
       λ { (inj₁ m) → ∥map∥ (λ { (y , my , r) → y , inl my , r}) (p' _ m)
         ; (inj₂ m) → ∥map∥ (λ { (y , my , r) → y , inr my , r}) (q' _ m) }) 
 
@@ -263,10 +263,10 @@ PfinEq→Eq {s = s}{t} (p₁ , p₂) =
 pre∈ₛmapPfin : ∀{A B} (f : A → B) (b : B) (s : Pfin A)
   → ⟨ b ∈ₛ mapPfin f s ⟩ → ∃[ a ∈ A ] ⟨ a ∈ₛ s ⟩ × (f a ≡ b)
 pre∈ₛmapPfin f b =
-  elimPfinProp (λ x → _ , isPropΠ (λ _ → propTruncIsProp))
+  elimPfinProp (λ x → _ , isPropΠ (λ _ → Pr.isPropPropTrunc))
     (λ ())
     (λ a → ∥map∥ (λ eq → a , ∣ refl ∣ , sym eq))
-    λ p₁ p₂ → ∥rec∥ propTruncIsProp
+    λ p₁ p₂ → ∥rec∥ Pr.isPropPropTrunc
       (λ { (inj₁ m) → ∥map∥ (λ {(a , m , eq) → a , inl m , eq}) (p₁ m)
          ; (inj₂ m) → ∥map∥ (λ {(a , m , eq) → a , inr m , eq}) (p₂ m) })
 
@@ -289,7 +289,7 @@ map∪⊆ s1 s2 t1 t2 p q x =
 ⊆∪ : ∀{A : Type} (s1 s2 t : Pfin A)
   → t ⊆ (s1 ∪ s2) → ∃[ t1 ∈ Pfin A ] Σ[ t2 ∈ Pfin A ] (t1 ⊆ s1) × (t2 ⊆ s2) × (t ≡ t1 ∪ t2)
 ⊆∪ s1 s2 =
-  elimPfinProp (λ _ → _ , isPropΠ (λ _ → propTruncIsProp))
+  elimPfinProp (λ _ → _ , isPropΠ (λ _ → Pr.isPropPropTrunc))
     (λ x → ∣ ø , ø , (λ { _ () }) , (λ { _ () }) , sym (idem _) ∣)
     (λ a m →
       ∥map∥
@@ -303,7 +303,7 @@ map∪⊆ s1 s2 t1 t2 p q x =
                         sym (com _ _ ∙ nr _) })
         (m a ∣ refl ∣))
     λ ih1 ih2 p →
-      ∥rec∥ propTruncIsProp
+      ∥rec∥ Pr.isPropPropTrunc
         (λ { (u1 , u2 , m1 , m2 , eq1) →
           ∥map∥
             (λ { (v1 , v2 , n1 , n2 , eq2) →
@@ -323,7 +323,7 @@ map∪⊆ s1 s2 t1 t2 p q x =
 pre⊆mapPfin : ∀{A B} (f : A → B) (s : Pfin A) (t : Pfin B)
   → t ⊆ mapPfin f s → ∃[ s' ∈ Pfin A ] (s' ⊆ s) × (mapPfin f s' ≡ t)
 pre⊆mapPfin f s =
-  elimPfinProp (λ x → _ , isPropΠ (λ _ → propTruncIsProp))
+  elimPfinProp (λ x → _ , isPropΠ (λ _ → Pr.isPropPropTrunc))
     (λ x → ∣ ø , (λ { _ () }) , refl ∣)
     (λ b p →
       ∥map∥
@@ -333,7 +333,7 @@ pre⊆mapPfin f s =
             cong η eq})
         (pre∈ₛmapPfin f b s (p b ∣ refl ∣)))
     λ {t1} {t2} ih1 ih2 p →
-      ∥rec∥ propTruncIsProp
+      ∥rec∥ Pr.isPropPropTrunc
         (λ { (u1 , m1 , eq1) →
           ∥map∥
             (λ { (u2 , m2 , eq2) → (u1 ∪ u2) , ∪⊆ u1 u2 s m1 m2 , cong₂ _∪_ eq1 eq2 })
@@ -428,7 +428,7 @@ mapPfinη {A} setA f injf s b eq =
   → (t1 ∪ t2) ⊆ mapPfin f s
   → ∃[ s1 ∈ Pfin A ] Σ[ s2 ∈ Pfin A ] ((s1 ∪ s2) ⊆ s) × (t1 ≡ mapPfin f s1) × (t2 ≡ mapPfin f s2)
 ∪⊆mapPfin f s t1 t2 mt =
-  ∥rec∥ propTruncIsProp
+  ∥rec∥ Pr.isPropPropTrunc
     (λ { (u1 , m1 , eq1) → ∥map∥
       (λ { (u2 , m2 , eq2) → u1 , u2 , ∪⊆ u1 u2 s m1 m2 , sym eq1 , sym eq2 })
       (pre⊆mapPfin f s t2 λ x mx → mt x (inr mx)) })
@@ -439,7 +439,7 @@ mapPfinη {A} setA f injf s b eq =
   → (t1 ∪ t2) ≡ mapPfin f s
   → ∃[ s1 ∈ Pfin A ] Σ[ s2 ∈ Pfin A ] (s1 ∪ s2 ≡ s) × (t1 ≡ mapPfin f s1) × (t2 ≡ mapPfin f s2)
 ∪≡mapPfin f injf s t1 t2 eq =
-  ∥rec∥ propTruncIsProp
+  ∥rec∥ Pr.isPropPropTrunc
     (λ { (u1 , m1 , eq1) → ∥map∥
       (λ { (u2 , m2 , eq2) → u1 , u2 , mapPfinInj f injf _ _ (cong₂ _∪_ eq1 eq2 ∙ eq) , sym eq1 , sym eq2 })
       (pre⊆mapPfin f s t2 (subst (t2 ⊆_) eq (λ _ → inr))) })

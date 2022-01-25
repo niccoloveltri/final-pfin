@@ -4,7 +4,7 @@ module Basics where
 
 open import Cubical.Foundations.Everything
 open import Cubical.Relation.Binary hiding (Rel)
-open import Cubical.Data.Nat
+open import Cubical.Data.Nat hiding (isEven ; isOdd)
 open import Cubical.Data.Sum renaming (rec to rec⊎)
 open import Cubical.Data.Empty renaming (rec to ⊥-rec)
 open import Cubical.Data.Bool
@@ -12,7 +12,7 @@ open import Cubical.Data.Sigma
 open import Cubical.Data.Nat.Order hiding (eq) renaming (_≟_ to _≟N_)
 open BinaryRelation
 open import Cubical.Relation.Nullary
-open import Cubical.HITs.PropositionalTruncation as PropTrunc
+open import Cubical.HITs.PropositionalTruncation as Pr
   renaming (map to ∥map∥; rec to ∥rec∥)
 
 -- some basic stuff

@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical --no-import-sorts #-}
+{-# OPTIONS --sized-types --cubical --no-import-sorts #-}
 
 module ListRelations where
 
@@ -7,8 +7,8 @@ open import Cubical.Core.Everything
 open import Cubical.Foundations.Prelude
 open import Cubical.Foundations.Everything
 open import Cubical.Functions.Logic renaming (⊥ to ⊥ₚ)
-open import Cubical.Relation.Everything
-open import Cubical.HITs.PropositionalTruncation as PropTrunc
+open import Cubical.Relation.Binary
+open import Cubical.HITs.PropositionalTruncation as Pr
   renaming (rec to ∥rec∥; map to ∥map∥)
 open import Cubical.HITs.SetQuotients renaming ([_] to eqCl)
 open import Cubical.Data.Sigma
@@ -46,8 +46,8 @@ Relator R xs ys =
 isPropRelator : ∀{ℓ}{X : Type ℓ} (R : X → X → Type ℓ)
   → ∀ xs ys → isProp (Relator R xs ys)
 isPropRelator R _ _ =
-  isProp× (isPropΠ (λ _ → isPropΠ (λ _ → propTruncIsProp)))
-          (isPropΠ (λ _ → isPropΠ (λ _ → propTruncIsProp)))
+  isProp× (isPropΠ (λ _ → isPropΠ (λ _ → Pr.isPropPropTrunc)))
+          (isPropΠ (λ _ → isPropΠ (λ _ → Pr.isPropPropTrunc)))
 
 Relatorₚ : ∀{ℓ}{X : Type ℓ} (R : X → X → hProp ℓ)
   → List X → List X → hProp ℓ 
@@ -74,7 +74,7 @@ transDRelator : ∀{ℓ}{X : Type ℓ} {R : X → X → Type ℓ}
   → (∀ {x y z} → R x y → R y z → R x z)
   → ∀ {xs ys zs} → DRelator R xs ys → DRelator R ys zs → DRelator R xs zs
 transDRelator transR p q x mx =
-  ∥rec∥ propTruncIsProp
+  ∥rec∥ Pr.isPropPropTrunc
     (λ { (y , my , ry) → ∥map∥ (λ { (z , mz , rz) → z , mz , transR ry rz }) (q y my)})
     (p x mx)
 
