@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical --no-import-sorts #-}
+{-# OPTIONS --cubical --sized-types --no-import-sorts #-}
 
 -- =================================================================
 -- Type Theoretic Constructions of the Final Coalgebra of the Finite

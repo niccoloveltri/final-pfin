@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical --no-import-sorts #-}
+{-# OPTIONS --sized-types --cubical --no-import-sorts #-}
 
 module Pfin.AsSetQuot where
 
@@ -6,8 +6,8 @@ open import Cubical.Core.Everything
 open import Cubical.Foundations.Prelude
 open import Cubical.Foundations.Everything
 open import Cubical.Functions.Logic renaming (⊥ to ⊥ₚ)
-open import Cubical.Relation.Everything
-open import Cubical.HITs.PropositionalTruncation as PropTrunc
+open import Cubical.Relation.Binary
+open import Cubical.HITs.PropositionalTruncation as Pr
   renaming (rec to ∥rec∥; map to ∥map∥)
 open import Cubical.HITs.SetQuotients
   renaming (rec to recQ; rec2 to recQ2; elim to elimQ)
@@ -53,11 +53,11 @@ _∷Q_ a = recQ squash/ (λ xs → [ a ∷ xs ])
 -- membership relation
 _∈Q_ : ∀{A} → A → PfinQ A → hProp₀
 _∈Q_ a = elimQ (λ _ → isSetHProp)
-  (λ xs → ∥ a ∈ xs ∥ , propTruncIsProp)
+  (λ xs → ∥ a ∈ xs ∥ , Pr.isPropPropTrunc)
   λ xs ys r → Σ≡Prop (λ _ → isPropIsProp)
-    (hPropExt propTruncIsProp propTruncIsProp
-      (∥rec∥ propTruncIsProp (λ m → ∥map∥ (λ { (x , m , eq) → subst (_∈ ys) (sym eq) m }) (r .fst _ m)))
-      (∥rec∥ propTruncIsProp (λ m → ∥map∥ (λ { (x , m , eq) → subst (_∈ xs) (sym eq) m }) (r .snd _ m))))
+    (hPropExt Pr.isPropPropTrunc Pr.isPropPropTrunc
+      (∥rec∥ Pr.isPropPropTrunc (λ m → ∥map∥ (λ { (x , m , eq) → subst (_∈ ys) (sym eq) m }) (r .fst _ m)))
+      (∥rec∥ Pr.isPropPropTrunc (λ m → ∥map∥ (λ { (x , m , eq) → subst (_∈ xs) (sym eq) m }) (r .snd _ m))))
 
 
 -- turning a list into a finite subset
@@ -75,7 +75,7 @@ List→Pfin++ (x ∷ xs) ys = cong (η x ∪_) (List→Pfin++ xs ys) ∙ ass _ _
 -- properties of membership in the finite subset associated to a list
 ∈ₛList→Pfin : ∀{A : Type} (xs : List A){a : A}
   → ⟨ a ∈ₛ List→Pfin xs ⟩ → ∥ a ∈ xs ∥
-∈ₛList→Pfin (x ∷ xs) = ∥rec∥ propTruncIsProp
+∈ₛList→Pfin (x ∷ xs) = ∥rec∥ Pr.isPropPropTrunc
   λ { (inj₁ p) → ∥map∥ (λ eq → subst (_∈ _) (sym eq) here) p
     ; (inj₂ p) → ∥map∥ there (∈ₛList→Pfin xs p)} 
 
@@ -90,7 +90,7 @@ List→Pfin∈ (x ∷ xs) (there p) = inr (List→Pfin∈ xs p)
 List→PfinRel : ∀{A}{xs ys : List A}
   → DRelator _≡_ xs ys → PfinDRel _≡_ (List→Pfin xs) (List→Pfin ys)
 List→PfinRel p x mx =
-  ∥rec∥ propTruncIsProp
+  ∥rec∥ Pr.isPropPropTrunc
     (λ mx' →
       ∥map∥ (λ { (y , my , eq) → (y , List→Pfin∈ _ my , eq) }) (p x mx'))
     (∈ₛList→Pfin _ mx)
@@ -158,7 +158,7 @@ mapPfinQComp = elimProp (λ _ → squash/ _ _)
 
 pre∈mapPfinQ : {A B : Type} {f : A → B} {b : B} (s : PfinQ A)
   → ⟨ b ∈Q mapPfinQ f s ⟩ → ∃[ a ∈ A ] ⟨ a ∈Q s ⟩ × (f a ≡ b)
-pre∈mapPfinQ = elimProp (λ _ → isPropΠ (λ _ → propTruncIsProp))
+pre∈mapPfinQ = elimProp (λ _ → isPropΠ (λ _ → Pr.isPropPropTrunc))
   λ xs → ∥map∥ (λ m → _ , ∣ pre∈mapList m .snd .fst ∣ , pre∈mapList m .snd .snd) 
 
 -- the size of a finite subset, which we can define if the carrier

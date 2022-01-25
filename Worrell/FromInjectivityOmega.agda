@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical --no-import-sorts #-}
+{-# OPTIONS --sized-types --cubical --no-import-sorts #-}
 
 module Worrell.FromInjectivityOmega where
 
@@ -6,14 +6,14 @@ open import Cubical.Core.Everything
 open import Cubical.Foundations.Prelude
 open import Cubical.Foundations.Everything
 open import Cubical.Functions.Logic renaming (⊥ to ⊥ₚ)
-open import Cubical.Relation.Everything
-open import Cubical.HITs.PropositionalTruncation as PropTrunc
+open import Cubical.Relation.Binary
+open import Cubical.HITs.PropositionalTruncation as Pr
   renaming (map to ∥map∥; rec to ∥rec∥)
 open import Cubical.HITs.SetQuotients renaming (rec to recQ)
 open import Cubical.Data.Sigma
 open import Cubical.Data.List renaming (map to mapList) hiding ([_])
 open import Cubical.Data.Empty renaming (elim to ⊥-elim; rec to ⊥-rec)
-open import Cubical.Data.Nat renaming (elim to elimNat)
+open import Cubical.Data.Nat hiding (isEven ; isOdd) renaming (elim to elimNat)
 open import Cubical.Data.Nat.Order hiding (eq) renaming (_≤_ to _≤N_; _≟_ to _≟N_)
 open import Cubical.Data.Bool 
 open import Cubical.Data.Sum renaming (map to map⊎; inl to inj₁; inr to inj₂; rec to rec⊎; elim to elim⊎)
@@ -261,7 +261,7 @@ module FromInjectivityOmega (ℓωinj : (s t : Vω2) → ℓω s ≡ ℓω t →
       sub : ∀ n → mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) (s .fst 1)
                     ⊆ mapPfin (λ (x : ωLimit iPfin-ch) → x .fst n) (t .fst 1)
       sub zero a _ = ∣ inj₁ ∣ refl ∣ ∣
-      sub (suc n) a = ∥rec∥ propTruncIsProp
+      sub (suc n) a = ∥rec∥ Pr.isPropPropTrunc
        (λ { (inj₁ r) →
                   ∥map∥ (λ eq → map⊎ (λ eq' → ∣ eq ∙ sym (q (suc n)) ∙ cong (λ w → w .fst (suc n)) eq' ∣)
                                      (λ eq' → ∣ eq ∙ sym (q (suc n)) ∙ cong (λ w → w .fst (suc n)) eq' ∣)
@@ -277,7 +277,7 @@ module FromInjectivityOmega (ℓωinj : (s t : Vω2) → ℓω s ≡ ℓω t →
   llpo : (a : ℕ → Bool) → isProp (Σ[ n ∈ ℕ ] a n ≡ true)
     → ∥ (∀ n → isEven n → a n ≡ false) ⊎ (∀ n → isOdd n → a n ≡ false) ∥
   llpo a aP = 
-    ∥rec∥ propTruncIsProp
+    ∥rec∥ Pr.isPropPropTrunc
       (λ { (inj₁ p) →
              ∥map∥ (λ eq → inj₁ (λ n ev → rec⊎ (λ q → ⊥-rec (case1 eq n ev q)) (λ q → q) (dichotomyBool (a n))))
                    p

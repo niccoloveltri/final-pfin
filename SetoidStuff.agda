@@ -12,7 +12,7 @@ open import Cubical.Data.Nat
 open import Cubical.Data.Sum renaming (inl to inj₁; inr to inj₂; map to map⊎)
 open import Cubical.Functions.Logic hiding (⊥)
 open import Cubical.HITs.SetQuotients renaming (rec to recQ)
-open import Cubical.HITs.PropositionalTruncation as PropTrunc
+open import Cubical.HITs.PropositionalTruncation as Pr
   renaming (map to ∥map∥; rec to ∥rec∥)
 open import Cubical.Relation.Binary hiding (Rel)
 open BinaryRelation
@@ -103,7 +103,7 @@ module _ (θInv : ∀ A {B} (R : B → B → Type) → (A → B / R) → [ A ⇒
 
   ac' : ∀ (A : Type) {B : Type} (R : B → B → Type)
     → (f : (A → B) / PW R) → ∃[ g ∈ (A → B) ] [_] ∘ g ≡ θ A R f
-  ac' A R = elimProp (λ _ → propTruncIsProp) (λ g → ∣ g , refl ∣)
+  ac' A R = elimProp (λ _ → Pr.isPropPropTrunc) (λ g → ∣ g , refl ∣)
 
   ac : ∀ (A : Type) {B : Type} (R : B → B → Type)
     → (f : A → B / R) → ∃[ g ∈ (A → B) ] [_] ∘ g ≡ f

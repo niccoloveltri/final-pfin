@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical --no-import-sorts #-}
+{-# OPTIONS --sized-types --cubical --no-import-sorts #-}
 
 module Worrell.NoSurjAlgebra where
 
@@ -6,8 +6,8 @@ open import Cubical.Core.Everything
 open import Cubical.Foundations.Prelude
 open import Cubical.Foundations.Everything
 open import Cubical.Functions.Logic renaming (⊥ to ⊥ₚ)
-open import Cubical.Relation.Everything
-open import Cubical.HITs.PropositionalTruncation as PropTrunc
+open import Cubical.Relation.Binary
+open import Cubical.HITs.PropositionalTruncation as Pr
   renaming (map to ∥map∥; rec to ∥rec∥)
 open import Cubical.HITs.SetQuotients renaming (rec to recQ; elimProp to elimQProp; elim to elimQ; elimProp2 to elimQProp2)
 open import Cubical.Data.Sigma
@@ -60,7 +60,7 @@ growing≡growing' : ∀ n → growing n ≡ growing' n
 growing≡growing' zero = refl
 growing≡growing' (suc zero) = refl
 growing≡growing' (suc (suc n)) =
-  elimQProp {B = λ x → ([ [] ] ∷Q mapPfinQ (λ x → [ x ∷ [] ]) x) ≡ growing'-aux n x}
+  elimQProp {P = λ x → ([ [] ] ∷Q mapPfinQ (λ x → [ x ∷ [] ]) x) ≡ growing'-aux n x}
             (λ _ → squash/ _ _)
             (λ _ → refl)
             (growing (suc n)) 
@@ -72,7 +72,7 @@ growingEq' (suc zero) = eq/ _ _
   ((λ { _ here → ∣ tt , here , refl ∣ ; _ (there m) → ∣ tt , m , refl ∣ }) ,
    λ { _ here → ∣ tt , here , refl ∣ })
 growingEq' (suc (suc n)) =
-  elimQProp {B = λ x → mapPfinQ (mapPfinQ (iMapPfinQ n)) ((growing'-aux (suc n) (growing'-aux n x))) ≡ growing'-aux n (mapPfinQ (iMapPfinQ n) (growing'-aux n x))}
+  elimQProp {P = λ x → mapPfinQ (mapPfinQ (iMapPfinQ n)) ((growing'-aux (suc n) (growing'-aux n x))) ≡ growing'-aux n (mapPfinQ (iMapPfinQ n) (growing'-aux n x))}
             (λ _ → squash/ _ _)
             (λ xs →
               cong [_] (cong (λ z → [ [] ] ∷ [ iMapPfinQ n [ [] ] ∷ [] ] ∷ z) (mapListComp (mapList (λ x → [ x ∷ [] ]) xs)))
